@@ -1,3 +1,4 @@
+/// <reference path="./electron.d.ts" />
 import { useState, useEffect, useRef } from 'react';
 import { Editor } from './infrastructure/ui/components/Editor';
 import { AppServices } from './infrastructure/AppServices';
@@ -63,7 +64,7 @@ function ProfileSetup({ onComplete }: { onComplete: (profile: UserProfile) => vo
   const [name, setName] = useState('');
   const [color, setColor] = useState('#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'));
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
-    (localStorage.getItem('tuxnotas-theme') as 'light' | 'dark') || 'dark'
+    (localStorage.getItem('fluent-theme') as 'light' | 'dark') || 'dark'
   );
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
@@ -131,7 +132,7 @@ function ProfileSetup({ onComplete }: { onComplete: (profile: UserProfile) => vo
 
 function HomeDashboard({ user, onOpenPool, onLogout }: {
   user: UserProfile;
-  onOpenPool: (poolId: string, name: string) => void;
+  onOpenPool: (poolId: string, name: string, signalingUrl?: string) => void;
   onLogout: () => void;
 }) {
   const [pools, setPools] = useState<PoolInfo[]>(getSavedPools());
@@ -139,32 +140,76 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
   const [creating, setCreating] = useState(false);
   const [newPoolName, setNewPoolName] = useState('');
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
-    (localStorage.getItem('tuxnotas-theme') as 'light' | 'dark') || 'dark'
+    (localStorage.getItem('fluent-theme') as 'light' | 'dark') || 'dark'
   );
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('tuxnotas-theme', theme);
+    localStorage.setItem('fluent-theme', theme);
   }, [theme]);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
+    let signalingIp = 'localhost';
+    try {
+      if (window.electronAPI) {
+        signalingIp = await window.electronAPI.startSignaling();
+        console.log('[Dashboard] Signaling started at IP:', signalingIp);
+      }
+    } catch (e) {
+      console.error('Error starting signaling:', e);
+    }
+
     const name = newPoolName.trim() || 'Mi espacio';
-    const poolId = `pool-${Math.random().toString(36).substr(2, 9)}`;
-    const pool: PoolInfo = { id: poolId, name, icon: 'workspace', lastOpened: Date.now(), createdAt: Date.now() };
+    // Generar ID único + IP para compartir
+    const randomId = `pool-${Math.random().toString(36).substr(2, 9)}`;
+    // Si estamos en electron, pegamos la IP. Si no (web), dejamos solo el ID.
+    const fullPoolId = window.electronAPI ? `${randomId}@${signalingIp}` : randomId;
+
+    const pool: PoolInfo = { id: fullPoolId, name, icon: 'workspace', lastOpened: Date.now(), createdAt: Date.now() };
     addPool(pool);
     setPools(getSavedPools());
     setCreating(false);
     setNewPoolName('');
-    onOpenPool(poolId, name);
+
+    // Al crear, somos el HOST -> usamos la IP local (signalingIp) para conectar nuestro adaptador
+    // URL de signaling: ws://<IP>:4444
+    const signalingUrl = `ws://${signalingIp}:4444`;
+    onOpenPool(fullPoolId, name, signalingUrl);
   };
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!joinId.trim()) return;
-    const pool: PoolInfo = { id: joinId.trim(), name: joinId.trim(), icon: 'collab', lastOpened: Date.now(), createdAt: Date.now() };
+
+    try {
+      if (window.electronAPI) {
+        await window.electronAPI.stopSignaling();
+        console.log('[Dashboard] Signaling stopped (joining existing pool)');
+      }
+    } catch (e) {
+      console.error('Error stopping signaling:', e);
+    }
+
+    // Parse id@ip
+    const input = joinId.trim();
+    let signalingUrl = undefined;
+
+    if (input.includes('@')) {
+      const parts = input.split('@');
+      // Ojo: Yjs necesita coincidir en el nombre de la sala. 
+      // Si el host usa "pool-123@192.168.1.50", el cliente también debe usar ese string como nombre de sala.
+      // O usamos solo la parte "pool-123"? -> Mejor usar TODO el string para evitar colisiones si hay otro pool-123 en otra IP.
+      // PERO, si cambia la IP del host y reinicia, cambia el nombre de la sala.
+      // Aceptable por simplicidad.
+
+      const ip = parts[1];
+      signalingUrl = `ws://${ip}:4444`;
+    }
+
+    const pool: PoolInfo = { id: input, name: input, icon: 'collab', lastOpened: Date.now(), createdAt: Date.now() };
     addPool(pool);
     setPools(getSavedPools());
     setJoinId('');
-    onOpenPool(pool.id, pool.name);
+    onOpenPool(pool.id, pool.name, signalingUrl);
   };
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
@@ -272,8 +317,8 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
 // 3. POOL WORKSPACE (editor + sidebar)
 // ════════════════════════════════════════════════════
 
-function PoolWorkspace({ poolId, poolName, user, onBack }: {
-  poolId: string; poolName: string; user: UserProfile; onBack: () => void;
+function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
+  poolId: string; poolName: string; user: UserProfile; onBack: () => void; signalingUrl?: string;
 }) {
   const [services, setServices] = useState<AppServices | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -290,12 +335,12 @@ function PoolWorkspace({ poolId, poolName, user, onBack }: {
   const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
   const [dragOverTarget, setDragOverTarget] = useState<string | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
-    (localStorage.getItem('tuxnotas-theme') as 'light' | 'dark') || 'dark'
+    (localStorage.getItem('fluent-theme') as 'light' | 'dark') || 'dark'
   );
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('tuxnotas-theme', theme);
+    localStorage.setItem('fluent-theme', theme);
   }, [theme]);
   const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
 
@@ -307,7 +352,7 @@ function PoolWorkspace({ poolId, poolName, user, onBack }: {
 
     (async () => {
       // ★ Use singleton cache — prevents "Yjs Doc already exists!" on StrictMode double-invoke
-      const svc = await AppServices.getOrCreate(poolId);
+      const svc = await AppServices.getOrCreate(poolId, signalingUrl);
       if (cancelled) { AppServices.release(poolId); return; }
       currentSvc = svc;
       setServices(svc);
@@ -669,7 +714,7 @@ function PoolWorkspace({ poolId, poolName, user, onBack }: {
 // MAIN APP — Screen Router
 // ════════════════════════════════════════════════════
 
-type Screen = { type: 'profile' } | { type: 'dashboard' } | { type: 'workspace'; poolId: string; poolName: string };
+type Screen = { type: 'profile' } | { type: 'dashboard' } | { type: 'workspace'; poolId: string; poolName: string; signalingUrl?: string };
 
 function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(getUserProfile());
@@ -682,8 +727,8 @@ function App() {
     setScreen({ type: 'dashboard' });
   };
 
-  const handleOpenPool = (poolId: string, poolName: string) => {
-    setScreen({ type: 'workspace', poolId, poolName });
+  const handleOpenPool = (poolId: string, poolName: string, signalingUrl?: string) => {
+    setScreen({ type: 'workspace', poolId, poolName, signalingUrl });
   };
 
   const handleBack = () => {
@@ -709,6 +754,7 @@ function App() {
       poolName={screen.poolName}
       user={userProfile}
       onBack={handleBack}
+      signalingUrl={screen.signalingUrl}
     />
   );
 }

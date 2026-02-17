@@ -47,14 +47,16 @@ export class YjsWebRTCAdapter implements NetworkAdapter {
         this.config = config || {};
     }
 
-    async connect(poolId: string): Promise<void> {
+    async connect(poolId: string, signalingUrl?: string): Promise<void> {
         // Guard: don't connect twice to the same room
         if (this.connected && this.provider) {
             console.log(`[Fluent] Already connected to: ${poolId}, skipping`);
             return;
         }
 
-        const signaling = this.config.signalingServers || DEFAULT_SIGNALING;
+        // Si se provee una URL específica (ej: IP del host), usarla.
+        // Si no, usar la configuración existente o el default (localhost:4444).
+        const signaling = signalingUrl ? [signalingUrl] : (this.config.signalingServers || DEFAULT_SIGNALING);
         const iceServers = this.config.iceServers || DEFAULT_ICE_SERVERS;
 
         this.provider = new WebrtcProvider(poolId, this.doc, {

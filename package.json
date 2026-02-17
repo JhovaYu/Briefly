@@ -1,9 +1,9 @@
 {
   "name": "fluent",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Notas colaborativas P2P — sin servidores, inspirado en Notion y Obsidian",
-  "author": "Fluent Team",
+  "author": "Fluent Team-MasterCoders",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
@@ -34,7 +34,15 @@
       "oneClick": true,
       "perMachine": false,
       "allowToChangeInstallationDirectory": false
-    }
+    },
+    "asarUnpack": [
+      "**/node_modules/y-webrtc-signaling/**",
+      "**/node_modules/y-webrtc/**",
+      "**/node_modules/simple-peer/**",
+      "**/node_modules/ws/**",
+      "**/node_modules/lib0/**",
+      "**/node_modules/y-protocols/**"
+    ]
   },
   "dependencies": {
     "@tiptap/extension-collaboration": "^3.19.0",

@@ -24,16 +24,16 @@ export class AppServices implements CollaborationService {
         this.persistence = new YjsIndexedDBAdapter(this.doc);
     }
 
-    async initialize(poolId: string = 'fluent-default-pool'): Promise<void> {
+    async initialize(poolId: string = 'fluent-default-pool', signalingUrl?: string): Promise<void> {
         await this.persistence.initialize(poolId);
-        await this.network.connect(poolId);
+        await this.network.connect(poolId, signalingUrl);
     }
 
     /**
      * Get or create a singleton AppServices for a given poolId.
      * Keeps a reference count so React StrictMode double-mounting is safe.
      */
-    static async getOrCreate(poolId: string): Promise<AppServices> {
+    static async getOrCreate(poolId: string, signalingUrl?: string): Promise<AppServices> {
         const existing = instanceCache.get(poolId);
         if (existing) {
             existing.refCount++;
@@ -42,7 +42,7 @@ export class AppServices implements CollaborationService {
         }
 
         const svc = new AppServices();
-        await svc.initialize(poolId);
+        await svc.initialize(poolId, signalingUrl);
         instanceCache.set(poolId, { svc, refCount: 1 });
         return svc;
     }
@@ -90,12 +90,12 @@ export class AppServices implements CollaborationService {
         return pool;
     }
 
-    async joinPool(poolId: string, _key?: string): Promise<void> {
+    async joinPool(poolId: string, signalingUrl?: string): Promise<void> {
         this.network.disconnect();
         this.doc = new Y.Doc();
         this.network = new YjsWebRTCAdapter(this.doc);
         this.persistence = new YjsIndexedDBAdapter(this.doc);
-        await this.initialize(poolId);
+        await this.initialize(poolId, signalingUrl);
     }
 
     async createNote(title?: string): Promise<Note> {

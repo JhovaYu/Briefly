@@ -1,33 +1,60 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const { fork } = require('child_process');
+const { spawn } = require('child_process');
+const os = require('os');
 
 const isDev = !app.isPackaged;
 let signalingProcess = null;
 
 /**
- * Levantar el signaling server local de y-webrtc.
- * Esto permite que peers se descubran sin depender de servidores externos.
- * Puerto 4444 por defecto.
+ * Obtiene la IP local de la red (preferiblemente WiFi o Ethernet).
  */
-function startSignalingServer() {
+function getLocalIP() {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            // Ignorar IPv6 y localhost
+            if (iface.family === 'IPv4' && !iface.internal) {
+                return iface.address;
+            }
+        }
+    }
+    return '127.0.0.1';
+}
+
+/**
+ * Inicia el signaling server en puerto 4444 escuchando en 0.0.0.0 (todos los interfaces).
+ */
+async function startSignalingServer() {
+    if (signalingProcess) {
+        console.log('[Fluent] Signaling server ya estaba corriendo.');
+        return getLocalIP();
+    }
+
     try {
-        // El binario de y-webrtc-signaling está en node_modules/.bin/
-        const signalingBin = isDev
-            ? path.join(__dirname, '..', 'node_modules', '.bin', 'y-webrtc-signaling')
-            : path.join(process.resourcesPath, 'node_modules', '.bin', 'y-webrtc-signaling');
+        // El archivo del servidor: node_modules/y-webrtc/bin/server.js
+        // En prod, con asarUnpack, el archivo estará en resources/app.asar.unpacked/node_modules/...
 
-        // Usamos spawn en vez de fork para ejecutar el binario
-        const { spawn } = require('child_process');
+        let serverPath;
+        if (isDev) {
+            serverPath = path.join(__dirname, '..', 'node_modules', 'y-webrtc', 'bin', 'server.js');
+        } else {
+            // En producción (packaged)
+            serverPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'y-webrtc', 'bin', 'server.js');
+        }
 
-        // En Windows, ejecutar el .cmd
-        const isWin = process.platform === 'win32';
-        const cmd = isWin ? `${signalingBin}.cmd` : signalingBin;
+        console.log(`[Fluent] Iniciando signaling con: ${process.execPath} (ELECTRON_RUN_AS_NODE) -> ${serverPath}`);
 
-        signalingProcess = spawn(cmd, [], {
+        // Usamos el ejecutable de Electron propiamente dicho para correr el script como Node
+        // Esto evita depender de que el usuario tenga Node instalado globalmente
+        signalingProcess = spawn(process.execPath, [serverPath], {
             stdio: 'pipe',
-            env: { ...process.env, PORT: '4444' },
-            shell: isWin,
+            env: {
+                ...process.env,
+                ELECTRON_RUN_AS_NODE: '1', // Indispensable para ejecutar scripts JS con el binario de Electron
+                PORT: '4444',
+                HOST: '0.0.0.0'
+            },
         });
 
         signalingProcess.stdout?.on('data', (data) => {
@@ -42,9 +69,22 @@ function startSignalingServer() {
             console.error('[Signaling] Failed to start:', err.message);
         });
 
-        console.log('[Fluent] Signaling server iniciado en puerto 4444');
+        console.log('[Fluent] Signaling server iniciado en 0.0.0.0:4444');
+        return getLocalIP();
     } catch (err) {
         console.error('[Fluent] Error al iniciar signaling server:', err);
+        throw err;
+    }
+}
+
+/**
+ * Detiene el signaling server.
+ */
+function stopSignalingServer() {
+    if (signalingProcess) {
+        console.log('[Fluent] Deteniendo signaling server...');
+        signalingProcess.kill();
+        signalingProcess = null;
     }
 }
 
@@ -59,6 +99,7 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
+            preload: path.join(__dirname, 'preload.cjs'), // Preload script
         },
         titleBarStyle: 'default',
         backgroundColor: '#1e1e1e',
@@ -83,8 +124,20 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-    // Primero levantar signaling, luego la ventana
-    startSignalingServer();
+    // Manejadores IPC
+    ipcMain.handle('start-signaling', async () => {
+        return await startSignalingServer();
+    });
+
+    ipcMain.handle('stop-signaling', () => {
+        stopSignalingServer();
+        return true;
+    });
+
+    ipcMain.handle('get-local-ip', () => {
+        return getLocalIP();
+    });
+
     createWindow();
 
     app.on('activate', () => {
@@ -101,9 +154,6 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-    // Matar signaling server al cerrar
-    if (signalingProcess) {
-        signalingProcess.kill();
-        signalingProcess = null;
-    }
+    stopSignalingServer();
 });
+

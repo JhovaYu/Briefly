@@ -18,7 +18,7 @@ export interface PoolInfo {
 // Helper: get/set user profile from localStorage
 export function getUserProfile(): UserProfile | null {
     try {
-        const raw = localStorage.getItem('tuxnotas-user-profile');
+        const raw = localStorage.getItem('fluent-user-profile');
         return raw ? JSON.parse(raw) : null;
     } catch {
         return null;
@@ -26,13 +26,13 @@ export function getUserProfile(): UserProfile | null {
 }
 
 export function saveUserProfile(profile: UserProfile): void {
-    localStorage.setItem('tuxnotas-user-profile', JSON.stringify(profile));
+    localStorage.setItem('fluent-user-profile', JSON.stringify(profile));
 }
 
 // Helper: get/set pool list from localStorage
 export function getSavedPools(): PoolInfo[] {
     try {
-        const raw = localStorage.getItem('tuxnotas-pools');
+        const raw = localStorage.getItem('fluent-pools');
         return raw ? JSON.parse(raw) : [];
     } catch {
         return [];
@@ -40,7 +40,7 @@ export function getSavedPools(): PoolInfo[] {
 }
 
 export function savePools(pools: PoolInfo[]): void {
-    localStorage.setItem('tuxnotas-pools', JSON.stringify(pools));
+    localStorage.setItem('fluent-pools', JSON.stringify(pools));
 }
 
 export function addPool(pool: PoolInfo): void {
