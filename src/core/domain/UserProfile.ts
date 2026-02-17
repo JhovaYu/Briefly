@@ -13,6 +13,7 @@ export interface PoolInfo {
     icon: string;
     lastOpened: number;
     createdAt: number;
+    signalingUrl?: string; // Optional: specific signaling server for this pool (e.g. host IP)
 }
 
 // Helper: get/set user profile from localStorage
@@ -47,7 +48,8 @@ export function addPool(pool: PoolInfo): void {
     const pools = getSavedPools();
     const existing = pools.findIndex((p) => p.id === pool.id);
     if (existing >= 0) {
-        pools[existing] = { ...pools[existing], lastOpened: Date.now() };
+        // Update existing pool with new data (e.g. new signalingUrl) and touch lastOpened
+        pools[existing] = { ...pools[existing], ...pool, lastOpened: Date.now() };
     } else {
         pools.push(pool);
     }

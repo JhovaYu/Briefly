@@ -160,21 +160,28 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
     }
 
     const name = newPoolName.trim() || 'Mi espacio';
-    // Generar ID único + IP para compartir
-    const randomId = `pool-${Math.random().toString(36).substr(2, 9)}`;
-    // Si estamos en electron, pegamos la IP. Si no (web), dejamos solo el ID.
-    const fullPoolId = window.electronAPI ? `${randomId}@${signalingIp}` : randomId;
 
-    const pool: PoolInfo = { id: fullPoolId, name, icon: 'workspace', lastOpened: Date.now(), createdAt: Date.now() };
+    // Generar ID único (sin IP)
+    const poolId = `pool-${Math.random().toString(36).substr(2, 9)}`;
+    const signalingUrl = `ws://${signalingIp}:4444`;
+
+    // Guardar el pool con su ID puro y la IP actual
+    const pool: PoolInfo = {
+      id: poolId,
+      name,
+      icon: 'workspace',
+      lastOpened: Date.now(),
+      createdAt: Date.now(),
+      signalingUrl // Guardamos la URL para recordar nuestra propia IP/config
+    };
+
     addPool(pool);
     setPools(getSavedPools());
     setCreating(false);
     setNewPoolName('');
 
-    // Al crear, somos el HOST -> usamos la IP local (signalingIp) para conectar nuestro adaptador
-    // URL de signaling: ws://<IP>:4444
-    const signalingUrl = `ws://${signalingIp}:4444`;
-    onOpenPool(fullPoolId, name, signalingUrl);
+    // Al crear, somos el HOST -> usamos la IP local
+    onOpenPool(poolId, name, signalingUrl);
   };
 
   const handleJoin = async () => {
@@ -191,22 +198,37 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
 
     // Parse id@ip
     const input = joinId.trim();
+    if (!input) return;
+
+    let poolId = input;
     let signalingUrl = undefined;
 
     if (input.includes('@')) {
       const parts = input.split('@');
-      // Ojo: Yjs necesita coincidir en el nombre de la sala. 
-      // Si el host usa "pool-123@192.168.1.50", el cliente también debe usar ese string como nombre de sala.
-      // O usamos solo la parte "pool-123"? -> Mejor usar TODO el string para evitar colisiones si hay otro pool-123 en otra IP.
-      // PERO, si cambia la IP del host y reinicia, cambia el nombre de la sala.
-      // Aceptable por simplicidad.
-
+      poolId = parts[0]; // El ID real es solo la primera parte
       const ip = parts[1];
       signalingUrl = `ws://${ip}:4444`;
     }
 
-    const pool: PoolInfo = { id: input, name: input, icon: 'collab', lastOpened: Date.now(), createdAt: Date.now() };
+    // Buscar si ya existe este pool (para actualizar su IP/signalingUrl)
+    const savedPools = getSavedPools();
+    const existingIndex = savedPools.findIndex(p => p.id === poolId);
+
+    const poolName = existingIndex >= 0 ? savedPools[existingIndex].name : poolId;
+
+    // Construir objeto pool (actualizando signalingUrl si es nuevo o cambió)
+    const pool: PoolInfo = {
+      id: poolId,
+      name: poolName,
+      icon: 'collab',
+      lastOpened: Date.now(),
+      createdAt: existingIndex >= 0 ? savedPools[existingIndex].createdAt : Date.now(),
+      signalingUrl: signalingUrl || (existingIndex >= 0 ? savedPools[existingIndex].signalingUrl : undefined)
+    };
+
+    // Esto actualiza o añade el pool
     addPool(pool);
+
     setPools(getSavedPools());
     setJoinId('');
     onOpenPool(pool.id, pool.name, signalingUrl);
@@ -287,26 +309,53 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
           </div>
 
           {/* Existing pools — icons only, no emojis */}
-          {sorted.map((pool) => (
-            <div key={pool.id} className="pool-card" onClick={() => { updatePoolLastOpened(pool.id); onOpenPool(pool.id, pool.name); }}>
-              <div className="pool-card-header">
-                <div className="pool-card-icon-big" style={{ width: 36, height: 36 }}>
-                  <FileText size={18} />
+          {sorted.map((pool) => {
+            // Extraer IP para mostrar el share code
+            let shareCode = pool.id;
+            if (pool.signalingUrl) {
+              // extraer 192.168.x.x de ws://192.168.x.x:4444
+              try {
+                const url = new URL(pool.signalingUrl);
+                shareCode = `${pool.id}@${url.hostname}`;
+              } catch { /* ignore */ }
+            }
+
+            return (
+              <div key={pool.id} className="pool-card" onClick={() => { updatePoolLastOpened(pool.id); onOpenPool(pool.id, pool.name, pool.signalingUrl); }}>
+                <div className="pool-card-header">
+                  <div className="pool-card-icon-big" style={{ width: 36, height: 36 }}>
+                    <FileText size={18} />
+                  </div>
+                  <button className="pool-card-delete" onClick={(e) => handleDelete(pool.id, e)} title="Eliminar">
+                    <Trash2 size={14} />
+                  </button>
                 </div>
-                <button className="pool-card-delete" onClick={(e) => handleDelete(pool.id, e)} title="Eliminar">
-                  <Trash2 size={14} />
-                </button>
+                <h3 className="pool-card-title">{pool.name}</h3>
+                <div className="pool-card-meta">
+                  <Clock size={12} />
+                  <span>{formatDate(pool.lastOpened)}</span>
+                </div>
+
+                <div className="pool-card-id" style={{ marginTop: 6 }}>
+                  <span style={{ fontSize: 10, opacity: 0.5, display: 'block' }}>ID: {pool.id}</span>
+                  <div className="pool-id-copy"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(shareCode);
+                      // Feedback visual simple
+                      const el = e.currentTarget;
+                      const original = el.innerHTML;
+                      el.innerText = "Copiado!";
+                      setTimeout(() => el.innerHTML = original, 1000);
+                    }}
+                    style={{ marginTop: 4, background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, cursor: 'copy', width: 'fit-content', maxWidth: '100%' }}
+                    title="Click para copiar código de invitación">
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)' }}>{shareCode}</span>
+                  </div>
+                </div>
               </div>
-              <h3 className="pool-card-title">{pool.name}</h3>
-              <div className="pool-card-meta">
-                <Clock size={12} />
-                <span>{formatDate(pool.lastOpened)}</span>
-              </div>
-              <div className="pool-card-id">
-                <span>{pool.id}</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </main>
     </div>
@@ -514,7 +563,14 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
   };
 
   const copyPoolId = async () => {
-    try { await navigator.clipboard.writeText(poolId); } catch { /* fallback */ }
+    let textToCopy = poolId;
+    if (signalingUrl) {
+      try {
+        const url = new URL(signalingUrl);
+        textToCopy = `${poolId}@${url.hostname}`;
+      } catch { }
+    }
+    try { await navigator.clipboard.writeText(textToCopy); } catch { /* fallback */ }
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
 
@@ -654,7 +710,18 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
         <div className="sidebar-footer">
           <div className="sidebar-pool-info pool-id-copy" onClick={copyPoolId} title="Click para copiar ID">
             <div className="status-dot" />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 120 }}>{poolId}</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 120 }}>
+              {/* Intentar mostrar código completo si hay URL */}
+              {(() => {
+                if (signalingUrl) {
+                  try {
+                    const url = new URL(signalingUrl);
+                    return `${poolId}@${url.hostname}`;
+                  } catch { }
+                }
+                return poolId;
+              })()}
+            </span>
             <Clipboard size={12} style={{ flexShrink: 0, opacity: 0.6 }} />
             {copied && <span className="copied-badge">Copiado</span>}
           </div>
