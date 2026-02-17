@@ -1,4 +1,4 @@
-import type { Note, Pool, Peer } from '../domain/Entities';
+import type { Note, Pool, Peer, Notebook } from '../domain/Entities';
 
 // Puerto de Persistencia (Driven)
 export interface NoteRepository {
@@ -6,6 +6,12 @@ export interface NoteRepository {
     saveNote(note: Note): Promise<void>;
     getAllNotes(): Promise<Note[]>;
     deleteNote(id: string): Promise<void>;
+
+    // Notebooks
+    getNotebook(id: string): Promise<Notebook | null>;
+    saveNotebook(notebook: Notebook): Promise<void>;
+    getAllNotebooks(): Promise<Notebook[]>;
+    deleteNotebook(id: string): Promise<void>;
 
     // Snapshots / Versioning
     saveSnapshot(poolId: string, state: Uint8Array): Promise<void>;
@@ -19,7 +25,7 @@ export interface NetworkAdapter {
     broadcast(message: any): void;
     onPeerJoin(callback: (peer: Peer) => void): void;
     onPeerLeave(callback: (peerId: string) => void): void;
-    getAwarenessState(): any; // Yjs Awareness
+    getAwarenessState(): any;
 }
 
 // Puerto de Cifrado (Driven)
@@ -33,6 +39,7 @@ export interface CryptoProvider {
 export interface CollaborationService {
     createPool(name: string): Promise<Pool>;
     joinPool(poolId: string, key?: string): Promise<void>;
-    createNote(title: string): Promise<Note>;
+    createNote(title?: string): Promise<Note>;
     updateNote(id: string, content: any): Promise<void>;
+    createNotebook(name: string, icon?: string): Promise<Notebook>;
 }

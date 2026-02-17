@@ -1,13 +1,40 @@
 {
-  "name": "tux_notas",
+  "name": "fluent",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Notas colaborativas P2P — sin servidores, inspirado en Notion y Obsidian",
+  "author": "Fluent Team",
+  "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "signaling": "y-webrtc-signaling",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:build": "npm run build && electron-builder --win",
+    "electron:preview": "electron ."
+  },
+  "build": {
+    "appId": "com.fluent.app",
+    "productName": "Fluent",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "public/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false
+    }
   },
   "dependencies": {
     "@tiptap/extension-collaboration": "^3.19.0",
@@ -42,12 +69,16 @@
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "concurrently": "^9.1.2",
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "wait-on": "^8.0.3"
   }
 }

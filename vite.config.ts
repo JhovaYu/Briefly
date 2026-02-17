@@ -10,6 +10,8 @@ export default defineConfig({
       protocolImports: true,
     }),
   ],
+  // Base relativa para que Electron cargue los archivos correctamente
+  base: './',
   define: {
     // simple-peer / y-webrtc reliance on global/process
     global: 'window',
@@ -19,5 +21,9 @@ export default defineConfig({
       // stream polyfill might be needed if nodePolyfills doesn't catch all
       // 'stream': 'stream-browserify',
     }
-  }
+  },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+  },
 })

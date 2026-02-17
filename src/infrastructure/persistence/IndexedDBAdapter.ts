@@ -1,7 +1,7 @@
 import * as Y from 'yjs';
 import { IndexeddbPersistence } from 'y-indexeddb';
 import type { NoteRepository } from '../../core/ports/Ports';
-import type { Note } from '../../core/domain/Entities';
+import type { Note, Notebook } from '../../core/domain/Entities';
 
 export class YjsIndexedDBAdapter implements NoteRepository {
     private doc: Y.Doc;
@@ -25,6 +25,8 @@ export class YjsIndexedDBAdapter implements NoteRepository {
             }
         });
     }
+
+    // ─── Notes ───
 
     async getNote(id: string): Promise<Note | null> {
         const notesMap = this.doc.getMap<Note>('notes');
@@ -50,6 +52,43 @@ export class YjsIndexedDBAdapter implements NoteRepository {
             notesMap.delete(id);
         });
     }
+
+    // ─── Notebooks ───
+
+    async getNotebook(id: string): Promise<Notebook | null> {
+        const nbMap = this.doc.getMap<Notebook>('notebooks');
+        return nbMap.get(id) || null;
+    }
+
+    async saveNotebook(notebook: Notebook): Promise<void> {
+        const nbMap = this.doc.getMap<Notebook>('notebooks');
+        this.doc.transact(() => {
+            nbMap.set(notebook.id, notebook);
+        });
+    }
+
+    async getAllNotebooks(): Promise<Notebook[]> {
+        const nbMap = this.doc.getMap<Notebook>('notebooks');
+        return Array.from(nbMap.values());
+    }
+
+    async deleteNotebook(id: string): Promise<void> {
+        const nbMap = this.doc.getMap<Notebook>('notebooks');
+        this.doc.transact(() => {
+            nbMap.delete(id);
+        });
+        // Move notes from this notebook to uncategorized
+        const notesMap = this.doc.getMap<Note>('notes');
+        this.doc.transact(() => {
+            notesMap.forEach((note, key) => {
+                if (note.notebookId === id) {
+                    notesMap.set(key, { ...note, notebookId: undefined });
+                }
+            });
+        });
+    }
+
+    // ─── Snapshots ───
 
     async saveSnapshot(poolId: string, state: Uint8Array): Promise<void> {
         console.log(`Snapshot saved for pool ${poolId}, size: ${state.length}`);
