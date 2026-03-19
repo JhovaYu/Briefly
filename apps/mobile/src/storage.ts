@@ -15,16 +15,27 @@ export async function saveUserProfile(profile: UserProfile): Promise<void> {
     await SecureStore.setItemAsync(USER_KEY, JSON.stringify(profile));
 }
 
+export type DashboardWidgetConfig = {
+    poolId?: string;
+    listId?: string;
+};
+
 export type AppSettings = {
     fontSizeMultiplier: number;
+    buttonSizeMultiplier: number;
+    dashboardWidget?: DashboardWidgetConfig;
 };
 const SETTINGS_KEY = 'fluent-settings';
 
 export async function getSettings(): Promise<AppSettings> {
     try {
         const json = await SecureStore.getItemAsync(SETTINGS_KEY);
-        return json ? JSON.parse(json) : { fontSizeMultiplier: 1 };
-    } catch { return { fontSizeMultiplier: 1 }; }
+        const parsed = json ? JSON.parse(json) : {};
+        return {
+            fontSizeMultiplier: parsed.fontSizeMultiplier || 1,
+            buttonSizeMultiplier: parsed.buttonSizeMultiplier || 1
+        };
+    } catch { return { fontSizeMultiplier: 1, buttonSizeMultiplier: 1 }; }
 }
 
 export async function saveSettings(settings: AppSettings): Promise<void> {

@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../src/AppContext';
 // @ts-ignore
 import type { UserProfile, PoolInfo } from '@tuxnotas/shared';
+import TaskWidget from '../src/TaskWidget';
 
 // Extend profile locally just in case
 type LocalProfile = UserProfile & { avatarUri?: string };
@@ -108,22 +109,24 @@ export default function Index() {
         router.push({ pathname: `/${pool.id}`, params: { signalingUrl: pool.signalingUrl, name: pool.name } });
     };
 
+    const [optionsModal, setOptionsModal] = useState<PoolInfo | null>(null);
+
     const handleOptionsPool = (pool: PoolInfo) => {
-        Alert.alert('Opciones de Espacio', pool.name, [
-            {
-                text: 'Copiar ID para compartir', onPress: async () => {
-                    await Clipboard.setStringAsync(pool.id);
-                    Alert.alert('ID copiado al portapapeles');
-                }
-            },
-            {
-                text: 'Eliminar espacio', style: 'destructive', onPress: async () => {
-                    await removePool(pool.id);
-                    loadPools();
-                }
-            },
-            { text: 'Cancelar', style: 'cancel' }
-        ]);
+        setOptionsModal(pool);
+    };
+
+    const copyPoolId = async () => {
+        if (!optionsModal) return;
+        await Clipboard.setStringAsync(optionsModal.id);
+        Alert.alert('¡Copiado!', 'El ID del espacio se copió al portapapeles.');
+        setOptionsModal(null);
+    };
+
+    const confirmDeletePool = async () => {
+        if (!optionsModal) return;
+        await removePool(optionsModal.id);
+        loadPools();
+        setOptionsModal(null);
     };
 
     if (loading) return <View style={styles.center}><Text style={{ color: '#fff', fontSize: 14 * sf }}>Cargando...</Text></View>;
@@ -168,6 +171,8 @@ export default function Index() {
                 </View>
             </View>
 
+            <TaskWidget pools={pools} />
+
             <FlatList
                 data={pools}
                 keyExtractor={item => item.id}
@@ -176,7 +181,7 @@ export default function Index() {
                     <View style={{ gap: 12, marginBottom: 20 }}>
                         {creating ? (
                             <View style={styles.card}>
-                                <TextInput style={[styles.input, { fontSize: 14 * sf }]} placeholderTextColor="#666" placeholder="Nombre del espacio..." autoFocus value={newPoolName} onChangeText={setNewPoolName} />
+                                <TextInput style={[styles.input, { fontSize: 14 * sf }]} placeholderTextColor="#666" placeholder="Nombre del espacio..." autoFocus value={newPoolName} onChangeText={setNewPoolName} onSubmitEditing={handleCreatePool} />
                                 <View style={{ flexDirection: 'row', gap: 8 }}>
                                     <TouchableOpacity style={[styles.button, { flex: 1 }]} onPress={handleCreatePool}><Text style={[styles.buttonText, { fontSize: 14 * sf }]}>Crear</Text></TouchableOpacity>
                                     <TouchableOpacity style={[styles.buttonSecondary, { flex: 1 }]} onPress={() => setCreating(false)}><Text style={[styles.buttonTextSecondary, { fontSize: 14 * sf }]}>Cancelar</Text></TouchableOpacity>
@@ -191,7 +196,7 @@ export default function Index() {
                         <View style={[styles.card, { marginTop: 10 }]}>
                             <Text style={{ color: '#fff', fontSize: 13 * sf, marginBottom: 8, opacity: 0.7 }}>Unirse a espacio</Text>
                             <View style={{ flexDirection: 'row', gap: 8 }}>
-                                <TextInput style={[styles.input, { flex: 1, marginBottom: 0, fontSize: 14 * sf }]} placeholderTextColor="#666" placeholder="ID o ID@IP" value={joinId} onChangeText={setJoinId} />
+                                <TextInput style={[styles.input, { flex: 1, marginBottom: 0, fontSize: 14 * sf }]} placeholderTextColor="#666" placeholder="ID o ID@IP" value={joinId} onChangeText={setJoinId} onSubmitEditing={handleJoinPool} />
                                 <TouchableOpacity style={styles.buttonSecondary} onPress={handleJoinPool}><Text style={[styles.buttonTextSecondary, { fontSize: 14 * sf }]}>Unirse</Text></TouchableOpacity>
                             </View>
                         </View>
@@ -207,6 +212,31 @@ export default function Index() {
                     </TouchableOpacity>
                 )}
             />
+
+            {/* Opciones Bottom Sheet */}
+            {optionsModal && (
+                <View style={StyleSheet.absoluteFill}>
+                    <TouchableOpacity style={styles.modalOverlay} onPress={() => setOptionsModal(null)} activeOpacity={1} />
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHandle} />
+                        <Text style={[styles.modalTitle, { fontSize: 18 * sf }]}>{optionsModal.name}</Text>
+
+                        <TouchableOpacity style={styles.modalOption} onPress={copyPoolId}>
+                            <Ionicons name="copy-outline" size={24 * sf} color="#ccc" />
+                            <Text style={[styles.modalOptionText, { fontSize: 16 * sf }]}>Copiar ID para compartir</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={[styles.modalOption, styles.modalOptionDanger]} onPress={confirmDeletePool}>
+                            <Ionicons name="trash-outline" size={24 * sf} color="#ff4444" />
+                            <Text style={[styles.modalOptionText, { color: '#ff4444', fontSize: 16 * sf }]}>Eliminar espacio</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={[styles.modalOption, { marginTop: 10, justifyContent: 'center' }]} onPress={() => setOptionsModal(null)}>
+                            <Text style={[styles.modalOptionText, { color: '#aaa', fontSize: 16 * sf }]}>Cancelar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            )}
         </SafeAreaView>
     );
 }
@@ -230,5 +260,13 @@ const styles = StyleSheet.create({
     cardPool: { backgroundColor: '#1a1a1a', padding: 16, borderRadius: 12, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     poolName: { color: '#fff', fontWeight: '600' },
     poolId: { color: '#666', marginTop: 4 },
-    poolDate: { color: '#666' }
+    poolDate: { color: '#666' },
+
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+    modalContent: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#1a1a1a', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, alignItems: 'stretch' },
+    modalHandle: { width: 40, height: 4, backgroundColor: '#444', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+    modalTitle: { color: '#fff', fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+    modalOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#333' },
+    modalOptionDanger: { borderBottomColor: 'transparent' },
+    modalOptionText: { color: '#eee', marginLeft: 16, fontWeight: '500' }
 });

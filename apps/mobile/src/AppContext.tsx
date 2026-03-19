@@ -9,7 +9,7 @@ type AppContextType = {
 const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-    const [settings, setSettings] = useState<AppSettings>({ fontSizeMultiplier: 1 });
+    const [settings, setSettings] = useState<AppSettings>({ fontSizeMultiplier: 1, buttonSizeMultiplier: 1 });
 
     useEffect(() => {
         getSettings().then(setSettings);

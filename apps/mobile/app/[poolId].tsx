@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, KeyboardAvoidingView, Platform, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, TextInput, Alert, Modal } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import { Task, TaskList, TaskService } from '@tuxnotas/shared';
@@ -6,57 +6,102 @@ import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
 import { Awareness } from 'y-protocols/awareness';
 import { StatusBar } from 'expo-status-bar';
+import { useApp } from '../src/AppContext';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Buffer } from 'buffer';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function PoolDetail() {
     const { poolId, name, signalingUrl } = useLocalSearchParams();
     const router = useRouter();
+    const { settings } = useApp();
+    const sf = settings.fontSizeMultiplier;
+    const bf = settings.buttonSizeMultiplier || 1;
+
     const [doc] = useState(() => new Y.Doc());
     const [taskService] = useState(() => new TaskService(doc));
     const [provider, setProvider] = useState<WebrtcProvider | null>(null);
 
     const [activeListId, setActiveListId] = useState<string | null>(null);
-    const [tick, setTick] = useState(0); // <-- Triggers re-render when Yjs updates
+    const [tick, setTick] = useState(0);
 
-    // ... state ...
     const [newTaskText, setNewTaskText] = useState('');
     const [newListName, setNewListName] = useState('');
     const [creatingList, setCreatingList] = useState(false);
+    const [focusedTask, setFocusedTask] = useState<Task | null>(null);
+    const [filterType, setFilterType] = useState<'all' | 'pending' | 'done'>('all');
+    const [filterModal, setFilterModal] = useState(false);
+    const [inputHeight, setInputHeight] = useState(40);
+
+    const saveTimeout = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         if (!poolId) return;
 
-        // Connect to signaling server
-        const url = signalingUrl as string || 'ws://localhost:4444'; // Fallback
-        console.log('Connecting to', url);
+        let active = true;
+        const provMap: any = { current: null };
 
-        const prov = new WebrtcProvider(poolId as string, doc, {
-            signaling: [url],
-            password: undefined,
-            awareness: new Awareness(doc),
-            maxConns: 20 + Math.floor(Math.random() * 15),
-            filterBcConns: false,
-            peerOpts: {}
-        });
-        setProvider(prov);
+        const loadAndConnect = async () => {
+            // @ts-ignore
+            const path = FileSystem.documentDirectory + `pool-${poolId}.bin`;
+            try {
+                const info = await FileSystem.getInfoAsync(path);
+                if (info.exists) {
+                    // @ts-ignore
+                    const base64 = await FileSystem.readAsStringAsync(path, { encoding: FileSystem.EncodingType.Base64 });
+                    const update = new Uint8Array(Buffer.from(base64, 'base64'));
+                    Y.applyUpdate(doc, update);
+                }
+            } catch (e) { console.error('Error loading YDoc:', e); }
 
-        const updateHandler = () => {
-            // Simply trigger a re-render on any Yjs update
-            setTick(t => t + 1);
+            if (!active) return;
+
+            const url = signalingUrl as string || 'ws://localhost:4444';
+            console.log('Connecting to', url);
+            const prov = new WebrtcProvider(poolId as string, doc, {
+                signaling: [url],
+                password: undefined,
+                awareness: new Awareness(doc),
+                maxConns: 20 + Math.floor(Math.random() * 15),
+                filterBcConns: false,
+                peerOpts: {}
+            });
+            provMap.current = prov;
+            setProvider(prov);
+            setTick(t => t + 1); // Render after load
         };
 
+        loadAndConnect();
+
+        const updateHandler = () => {
+            setTick(t => t + 1);
+            if (saveTimeout.current) clearTimeout(saveTimeout.current);
+            saveTimeout.current = setTimeout(async () => {
+                // @ts-ignore
+                const path = FileSystem.documentDirectory + `pool-${poolId}.bin`;
+                const state = Y.encodeStateAsUpdate(doc);
+                // @ts-ignore
+                await FileSystem.writeAsStringAsync(path, Buffer.from(state).toString('base64'), { encoding: FileSystem.EncodingType.Base64 }).catch(() => { });
+            }, 1000);
+        };
         doc.on('update', updateHandler);
 
         return () => {
-            prov.destroy();
+            active = false;
+            if (provMap.current) provMap.current.destroy();
             doc.off('update', updateHandler);
+            if (saveTimeout.current) clearTimeout(saveTimeout.current);
         };
     }, [poolId, signalingUrl, doc]);
 
-    // Synchronously derive reactive data on every render (no stale closures!)
     const taskLists = taskService.getTaskLists(poolId as string);
-    const tasks = activeListId ? taskService.getTasks(activeListId) : [];
+    let tasks = activeListId ? taskService.getTasks(activeListId) : [];
 
-    // Automatically select first list if none is selected
+    if (filterType === 'pending') tasks = tasks.filter(t => t.state !== 'done');
+    if (filterType === 'done') tasks = tasks.filter(t => t.state === 'done');
+    // Sort logic so that done are usually at the bottom or sorted normally by creation/due
+    tasks.sort((a, b) => b.createdAt - a.createdAt);
+
     useEffect(() => {
         if (!activeListId && taskLists.length > 0) {
             setActiveListId(taskLists[0].id);
@@ -82,75 +127,196 @@ export default function PoolDetail() {
         setActiveListId(list.id);
     };
 
+    const saveFocusedTask = () => {
+        if (focusedTask) {
+            taskService.updateTask(focusedTask.id, { description: focusedTask.description, dueDate: focusedTask.dueDate });
+            setFocusedTask(null);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
-            <Stack.Screen options={{ title: name as string || 'Espacio', headerStyle: { backgroundColor: '#111' }, headerTintColor: '#fff', headerTitleStyle: { fontSize: 18 * sf } }} />
-            <StatusBar style="light" />
+            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+                <Stack.Screen options={{ title: name as string || 'Espacio', headerStyle: { backgroundColor: '#111' }, headerTintColor: '#fff', headerTitleStyle: { fontSize: 18 * sf } }} />
+                <StatusBar style="light" />
 
-            {/* Horizontal List Selector */}
-            <View style={{ height: 50 * sf, borderBottomWidth: 1, borderBottomColor: '#222' }}>
-                <ScrollView horizontal contentContainerStyle={{ padding: 8, gap: 8 }}>
-                    {taskLists.map(list => (
-                        <TouchableOpacity
-                            key={list.id}
-                            style={[styles.tab, activeListId === list.id && styles.activeTab]}
-                            onPress={() => setActiveListId(list.id)}>
-                            <Text style={[styles.tabText, { fontSize: 12 * sf }, activeListId === list.id && styles.activeTabText]}>{list.name}</Text>
-                        </TouchableOpacity>
-                    ))}
-                    <TouchableOpacity style={styles.tab} onPress={() => setCreatingList(true)}>
-                        <Text style={[styles.tabText, { fontSize: 12 * sf }]}>+ Nueva lista</Text>
-                    </TouchableOpacity>
-                </ScrollView>
-            </View>
-
-            {creatingList && (
-                <View style={[styles.creationBar, { padding: 10 * sf }]}>
-                    <TextInput style={[styles.input, { fontSize: 14 * sf }]} placeholder="Nombre de lista..." placeholderTextColor="#666" value={newListName} onChangeText={setNewListName} autoFocus />
-                    <TouchableOpacity onPress={handleCreateList}><Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 * sf }}>OK</Text></TouchableOpacity>
-                    <TouchableOpacity onPress={() => setCreatingList(false)}><Text style={{ color: '#aaa', marginLeft: 16 * sf, fontSize: 14 * sf }}>X</Text></TouchableOpacity>
-                </View>
-            )}
-
-            {/* Tasks */}
-            <View style={{ flex: 1, padding: 16 }}>
-                {!activeListId ? (
-                    <View style={styles.center}>
-                        <Text style={{ color: '#666', fontSize: 14 * sf }}>Selecciona o crea una lista de tareas</Text>
-                    </View>
-                ) : (
-                    <ScrollView>
-                        {tasks.length === 0 && <Text style={{ color: '#444', textAlign: 'center', marginTop: 20 * sf, fontSize: 14 * sf }}>No hay tareas</Text>}
-                        {tasks.map(task => (
-                            <TouchableOpacity key={task.id} style={styles.taskItem} onPress={() => handleToggleTask(task)}>
-                                <View style={[styles.checkbox, { width: 20 * sf, height: 20 * sf, borderRadius: 10 * sf }, task.state === 'done' && styles.checkboxChecked]}>
-                                    {task.state === 'done' && <Text style={{ color: '#000', fontSize: 10 * sf }}>✓</Text>}
-                                </View>
-                                <Text style={[styles.taskText, { fontSize: 16 * sf }, task.state === 'done' && styles.taskTextDone]}>{task.text}</Text>
+                {/* List Selector */}
+                <View style={{ borderBottomWidth: 1, borderBottomColor: '#222', flexDirection: 'row', alignItems: 'center' }}>
+                    <ScrollView horizontal contentContainerStyle={{ padding: 8 * bf, gap: 8 * bf }} style={{ flex: 1 }}>
+                        {taskLists.map(list => (
+                            <TouchableOpacity
+                                key={list.id}
+                                style={[styles.tab, { paddingVertical: 6 * bf, paddingHorizontal: 12 * bf }, activeListId === list.id && styles.activeTab]}
+                                onPress={() => setActiveListId(list.id)}>
+                                <Text style={[styles.tabText, { fontSize: 13 * sf }, activeListId === list.id && styles.activeTabText]}>{list.name}</Text>
                             </TouchableOpacity>
                         ))}
+                        <TouchableOpacity style={[styles.tab, { paddingVertical: 6 * bf, paddingHorizontal: 12 * bf }]} onPress={() => setCreatingList(true)}>
+                            <Text style={[styles.tabText, { fontSize: 13 * sf }]}>+ Nueva lista</Text>
+                        </TouchableOpacity>
                     </ScrollView>
-                )}
-            </View>
+                    <TouchableOpacity onPress={() => setFilterModal(true)} style={{ padding: 12 * bf }}>
+                        <Ionicons name="filter-outline" size={24 * sf} color={filterType !== 'all' ? '#4CAF50' : '#ccc'} />
+                    </TouchableOpacity>
+                </View>
 
-            {/* Add Task Bar */}
-            {activeListId && (
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={80}>
+                {creatingList && (
+                    <View style={[styles.creationBar, { padding: 10 * sf }]}>
+                        <TextInput style={[styles.input, { fontSize: 14 * sf }]} placeholder="Nombre de lista..." placeholderTextColor="#666" value={newListName} onChangeText={setNewListName} autoFocus onSubmitEditing={handleCreateList} />
+                        <TouchableOpacity onPress={handleCreateList} style={{ padding: 8 * bf, paddingHorizontal: 16 * bf }}><Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 * sf }}>OK</Text></TouchableOpacity>
+                        <TouchableOpacity onPress={() => setCreatingList(false)} style={{ padding: 8 * bf }}><Text style={{ color: '#aaa', fontSize: 14 * sf }}>X</Text></TouchableOpacity>
+                    </View>
+                )}
+
+                {/* Tasks */}
+                <View style={{ flex: 1, padding: 16 * sf }}>
+                    {!activeListId ? (
+                        <View style={styles.center}><Text style={{ color: '#666', fontSize: 14 * sf }}>Selecciona o crea una lista de tareas</Text></View>
+                    ) : (
+                        <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+                            {tasks.length === 0 && <Text style={{ color: '#444', textAlign: 'center', marginTop: 20 * sf, fontSize: 14 * sf }}>No hay tareas</Text>}
+                            {tasks.map(task => (
+                                <TouchableOpacity key={task.id} style={styles.taskItem} onPress={() => handleToggleTask(task)} onLongPress={() => setFocusedTask(task)}>
+                                    <View style={[styles.checkbox, { width: 20 * sf, height: 20 * sf, borderRadius: 10 * sf }, task.state === 'done' && styles.checkboxChecked]}>
+                                        {task.state === 'done' && <Text style={{ color: '#000', fontSize: 10 * sf }}>✓</Text>}
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.taskText, { fontSize: 16 * sf }, task.state === 'done' && styles.taskTextDone]}>{task.text}</Text>
+                                        {task.description && (
+                                            <Text style={{ color: '#888', fontSize: 12 * sf, marginTop: 4 }}>{task.description}</Text>
+                                        )}
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    )}
+                </View>
+
+                {/* Task input field */}
+                {activeListId && (
                     <View style={[styles.footer, { padding: 12 * sf }]}>
                         <TextInput
-                            style={[styles.taskInput, { fontSize: 14 * sf, borderRadius: 20 * sf, paddingHorizontal: 16 * sf, paddingVertical: 8 * sf }]}
                             placeholder="Escribe una tarea..."
                             placeholderTextColor="#666"
                             value={newTaskText}
                             onChangeText={setNewTaskText}
-                            onSubmitEditing={handleAddTask}
+                            multiline={true}
+                            textAlignVertical="top"
+                            onContentSizeChange={e => setInputHeight(e.nativeEvent.contentSize.height)}
+                            scrollEnabled={inputHeight > 100 * sf}
+                            returnKeyType={Platform.OS === 'ios' ? 'default' : 'done'}
+                            blurOnSubmit={false}
+                            onSubmitEditing={() => {
+                                if (!newTaskText.trim()) return;
+                                handleAddTask();
+                            }}
+                            style={[styles.taskInput, { flex: 1, minHeight: 40 * sf, height: Math.min(Math.max(40 * sf, inputHeight), 100 * sf), backgroundColor: '#222', borderRadius: 20 * sf, paddingHorizontal: 16 * sf, paddingVertical: 10 * sf, color: '#fff', fontSize: 14 * sf }]}
                         />
-                        <TouchableOpacity style={[styles.sendButton, { width: 32 * sf, height: 32 * sf, borderRadius: 16 * sf }]} onPress={handleAddTask}>
-                            <Text style={{ color: '#000', fontWeight: 'bold', fontSize: 18 * sf }}>+</Text>
+                        <TouchableOpacity style={{ paddingLeft: 8 * bf, justifyContent: 'center', alignItems: 'center' }} onPress={handleAddTask}>
+                            <Ionicons name="checkmark-circle" size={40 * bf} color="#4CAF50" />
                         </TouchableOpacity>
                     </View>
-                </KeyboardAvoidingView>
-            )}
+                )}
+
+                {/* Filter Modal */}
+                {filterModal && (
+                    <Modal visible={true} transparent animationType="fade">
+                        <View style={StyleSheet.absoluteFill}>
+                            <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={() => setFilterModal(false)} />
+                            <View style={{ backgroundColor: '#1a1a1a', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, position: 'absolute', bottom: 0, left: 0, right: 0 }}>
+                                <Text style={{ color: '#fff', fontSize: 18 * sf, fontWeight: 'bold', marginBottom: 16 }}>Filtrar tareas</Text>
+
+                                <TouchableOpacity style={[styles.filterOption, filterType === 'all' && styles.filterOptionActive]} onPress={() => { setFilterType('all'); setFilterModal(false); }}>
+                                    <Text style={[styles.filterText, filterType === 'all' && styles.filterTextActive, { fontSize: 16 * sf }]}>Todas las tareas</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.filterOption, filterType === 'pending' && styles.filterOptionActive]} onPress={() => { setFilterType('pending'); setFilterModal(false); }}>
+                                    <Text style={[styles.filterText, filterType === 'pending' && styles.filterTextActive, { fontSize: 16 * sf }]}>Solo pendientes</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.filterOption, filterType === 'done' && styles.filterOptionActive]} onPress={() => { setFilterType('done'); setFilterModal(false); }}>
+                                    <Text style={[styles.filterText, filterType === 'done' && styles.filterTextActive, { fontSize: 16 * sf }]}>Solo terminadas</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </Modal>
+                )}
+
+                {/* Task Detail Modal */}
+                {focusedTask && (
+                    <Modal visible={true} transparent animationType="slide">
+                        <View style={StyleSheet.absoluteFill}>
+                            <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={() => setFocusedTask(null)} activeOpacity={1} />
+
+                            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0} style={{ justifyContent: 'flex-end' }}>
+                                <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 24 }}>
+                                    <View style={{ backgroundColor: '#1a1a1a', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 }}>
+                                        <Text style={{ color: '#fff', fontSize: 18 * sf, fontWeight: 'bold', marginBottom: 16 }}>{focusedTask.text}</Text>
+                                        <TextInput
+                                            style={{ backgroundColor: '#222', color: '#fff', padding: 12 * sf, borderRadius: 12, minHeight: 100 * sf, textAlignVertical: 'top', fontSize: 14 * sf, marginBottom: 12 }}
+                                            placeholder="Añadir descripción o notas detalladas..."
+                                            placeholderTextColor="#666"
+                                            multiline
+                                            defaultValue={focusedTask.description || ''}
+                                            onChangeText={text => focusedTask.description = text}
+                                        />
+
+                                        <Text style={{ color: '#aaa', fontSize: 12 * sf, marginBottom: 4 }}>Fecha límite (Día / Mes / Año)</Text>
+                                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                                            <TextInput
+                                                style={{ flex: 1, backgroundColor: '#222', color: '#fff', padding: 12 * sf, borderRadius: 12, fontSize: 14 * sf, textAlign: 'center' }}
+                                                placeholder="DD"
+                                                placeholderTextColor="#666"
+                                                keyboardType="numeric"
+                                                maxLength={2}
+                                                defaultValue={focusedTask.dueDate ? new Date(focusedTask.dueDate).toISOString().split('T')[0].split('-')[2] : ''}
+                                                onChangeText={text => {
+                                                    let [y, m, d] = focusedTask.dueDate ? new Date(focusedTask.dueDate).toISOString().split('T')[0].split('-') : [new Date().getFullYear().toString(), (new Date().getMonth() + 1).toString().padStart(2, '0'), ''];
+                                                    d = text.padStart(2, '0');
+                                                    const parsed = Date.parse(`${y}-${m}-${d}`);
+                                                    if (!isNaN(parsed)) focusedTask.dueDate = parsed;
+                                                }}
+                                            />
+                                            <TextInput
+                                                style={{ flex: 1, backgroundColor: '#222', color: '#fff', padding: 12 * sf, borderRadius: 12, fontSize: 14 * sf, textAlign: 'center' }}
+                                                placeholder="MM"
+                                                keyboardType="numeric"
+                                                maxLength={2}
+                                                placeholderTextColor="#666"
+                                                defaultValue={focusedTask.dueDate ? new Date(focusedTask.dueDate).toISOString().split('T')[0].split('-')[1] : ''}
+                                                onChangeText={text => {
+                                                    let [y, m, d] = focusedTask.dueDate ? new Date(focusedTask.dueDate).toISOString().split('T')[0].split('-') : [new Date().getFullYear().toString(), '', new Date().getDate().toString().padStart(2, '0')];
+                                                    m = text.padStart(2, '0');
+                                                    const parsed = Date.parse(`${y}-${m}-${d}`);
+                                                    if (!isNaN(parsed)) focusedTask.dueDate = parsed;
+                                                }}
+                                            />
+                                            <TextInput
+                                                style={{ flex: 2, backgroundColor: '#222', color: '#fff', padding: 12 * sf, borderRadius: 12, fontSize: 14 * sf, textAlign: 'center' }}
+                                                placeholder="YYYY"
+                                                keyboardType="numeric"
+                                                maxLength={4}
+                                                placeholderTextColor="#666"
+                                                defaultValue={focusedTask.dueDate ? new Date(focusedTask.dueDate).toISOString().split('T')[0].split('-')[0] : ''}
+                                                onChangeText={text => {
+                                                    let [y, m, d] = focusedTask.dueDate ? new Date(focusedTask.dueDate).toISOString().split('T')[0].split('-') : ['', (new Date().getMonth() + 1).toString().padStart(2, '0'), new Date().getDate().toString().padStart(2, '0')];
+                                                    y = text;
+                                                    if (y.length === 4) {
+                                                        const parsed = Date.parse(`${y}-${m}-${d}`);
+                                                        if (!isNaN(parsed)) focusedTask.dueDate = parsed;
+                                                    }
+                                                }}
+                                            />
+                                        </View>
+
+                                        <TouchableOpacity style={{ backgroundColor: '#fff', padding: 14 * bf, borderRadius: 12, alignItems: 'center', marginTop: 24 }} onPress={saveFocusedTask}>
+                                            <Text style={{ color: '#000', fontWeight: 'bold', fontSize: 16 * sf }}>Guardar detalles</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </ScrollView>
+                            </KeyboardAvoidingView>
+                        </View>
+                    </Modal>
+                )}
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
@@ -158,7 +324,7 @@ export default function PoolDetail() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#111' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    tab: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, backgroundColor: '#222' },
+    tab: { borderRadius: 16, backgroundColor: '#222', justifyContent: 'center' },
     activeTab: { backgroundColor: '#fff' },
     tabText: { color: '#ccc' },
     activeTabText: { color: '#000', fontWeight: 'bold' },
@@ -173,6 +339,11 @@ const styles = StyleSheet.create({
     taskTextDone: { color: '#666', textDecorationLine: 'line-through' },
 
     footer: { backgroundColor: '#1a1a1a', flexDirection: 'row', alignItems: 'center', gap: 10 },
-    taskInput: { flex: 1, backgroundColor: '#222', color: '#fff' },
-    sendButton: { backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }
+    taskInput: {},
+    sendButton: { backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+
+    filterOption: { padding: 16, backgroundColor: '#222', borderRadius: 12, marginBottom: 8 },
+    filterOptionActive: { backgroundColor: '#333', borderColor: '#555', borderWidth: 1 },
+    filterText: { color: '#ccc', textAlign: 'center' },
+    filterTextActive: { color: '#fff', fontWeight: 'bold' }
 });
