@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const os = require('os');
@@ -89,30 +89,35 @@ function stopSignalingServer() {
 }
 
 function createWindow() {
+    // Remove default Electron menu (File, Edit, View, etc.)
+    Menu.setApplicationMenu(null);
+
     const win = new BrowserWindow({
         width: 1200,
         height: 800,
         minWidth: 800,
         minHeight: 600,
-        title: 'Fluent',
-        icon: path.join(__dirname, '../public/vite.svg'),
+        title: 'Briefly',
+        icon: path.join(__dirname, '../public/logo.png'),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            preload: path.join(__dirname, 'preload.cjs'), // Preload script
+            preload: path.join(__dirname, 'preload.cjs'),
         },
         titleBarStyle: 'default',
         backgroundColor: '#1e1e1e',
         show: false,
+        autoHideMenuBar: true,
     });
 
     win.once('ready-to-show', () => {
+        win.maximize();
         win.show();
     });
 
     if (isDev) {
         win.loadURL('http://localhost:5173');
-        win.webContents.openDevTools({ mode: 'detach' });
+        // win.webContents.openDevTools({ mode: 'detach' });
     } else {
         win.loadFile(path.join(__dirname, '../dist/index.html'));
     }

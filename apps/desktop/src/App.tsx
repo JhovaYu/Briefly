@@ -3,10 +3,10 @@ import { useState, useEffect, useRef } from 'react';
 import { Editor } from './infrastructure/ui/components/Editor';
 import { AppServices } from './infrastructure/AppServices';
 import {
-  FileText, Plus, Search, Sun, Moon, LogOut, Trash2, PenLine,
+  FileText, Plus, Search, Sun, Moon, LogOut, Trash2,
   MoreHorizontal, ChevronRight, ChevronDown, FolderPlus, Copy,
   Edit3, FilePlus, FolderOpen, BookOpen, X, Clipboard, GripVertical,
-  ArrowLeft, Users, Clock, Zap, ListChecks,
+  ArrowLeft, Users, Clock, Zap, ListChecks, ChevronLeft, Download, QrCode,
 } from 'lucide-react';
 import type { Note, Notebook, TaskList } from '@tuxnotas/shared';
 import { TaskBoard } from './infrastructure/ui/components/TaskBoard';
@@ -15,6 +15,9 @@ import {
   updatePoolLastOpened,
   type UserProfile, type PoolInfo,
 } from './core/domain/UserProfile';
+import { application_name } from './constants';
+import QRCodeLib from 'qrcode';
+import JSZip from 'jszip';
 import './infrastructure/ui/styles/index.css';
 
 // ─── Shared Components ───
@@ -57,6 +60,108 @@ function InlineRename({ value, onSave, onCancel }: { value: string; onSave: (v: 
   );
 }
 
+// ─── Export helpers ───
+
+async function getNoteContentAsText(doc: any, noteId: string): Promise<string> {
+  const fragment = doc.getXmlFragment(`note-${noteId}`);
+  const lines: string[] = [];
+  const walk = (node: any) => {
+    if (node.toString) {
+      const str = node.toString();
+      // strip XML tags to get plain text
+      const plain = str.replace(/<[^>]+>/g, '').trim();
+      if (plain) lines.push(plain);
+    }
+    if (node.toArray) {
+      for (const child of node.toArray()) walk(child);
+    }
+  };
+  walk(fragment);
+  return lines.join('\n');
+}
+
+async function exportNoteAs(doc: any, note: Note, format: 'txt' | 'md') {
+  const content = await getNoteContentAsText(doc, note.id);
+  let output = '';
+  let ext = format;
+  if (format === 'md') {
+    output = `# ${note.title || 'Sin título'}\n\n${content}`;
+  } else {
+    output = `${note.title || 'Sin título'}\n${'='.repeat((note.title || 'Sin título').length)}\n\n${content}`;
+  }
+  const blob = new Blob([output], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${note.title || 'nota'}.${ext}`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function exportAllPoolAsZip(doc: any, notes: Note[], notebooks: Notebook[], poolName: string) {
+  const zip = new JSZip();
+  const root = zip.folder(poolName) || zip;
+
+  // Group notes by notebook
+  const nbMap = new Map<string | undefined, Note[]>();
+  for (const n of notes) {
+    const key = n.notebookId;
+    if (!nbMap.has(key)) nbMap.set(key, []);
+    nbMap.get(key)!.push(n);
+  }
+
+  const nbNameMap = new Map<string, string>();
+  for (const nb of notebooks) nbNameMap.set(nb.id, nb.name);
+
+  for (const [nbId, nbNotes] of nbMap.entries()) {
+    const folderName = nbId ? (nbNameMap.get(nbId) || 'Cuaderno') : 'Sin cuaderno';
+    const folder = root.folder(folderName) || root;
+    for (const note of nbNotes) {
+      const content = await getNoteContentAsText(doc, note.id);
+      const md = `# ${note.title || 'Sin título'}\n\n${content}`;
+      folder.file(`${note.title || 'nota'}.md`, md);
+      folder.file(`${note.title || 'nota'}.txt`, `${note.title || 'Sin título'}\n\n${content}`);
+    }
+  }
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${poolName}-export.zip`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── QR Code Modal ───
+function QrModal({ value, onClose }: { value: string; onClose: () => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    if (canvasRef.current) {
+      QRCodeLib.toCanvas(canvasRef.current, value, {
+        width: Math.min(window.innerWidth, window.innerHeight) * 0.35,
+        margin: 2,
+        color: { dark: '#000000', light: '#ffffff' },
+      });
+    }
+  }, [value]);
+
+  return (
+    <div className="qr-overlay" onClick={onClose}>
+      <div className="qr-modal" onClick={(e) => e.stopPropagation()}>
+        <canvas ref={canvasRef} />
+        <p style={{ marginTop: 16, fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center' }}>
+          Escanea para unirte al espacio
+        </p>
+        <p style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 600, fontFamily: 'monospace', wordBreak: 'break-all', textAlign: 'center' }}>
+          {value}
+        </p>
+        <button className="login-btn-secondary" style={{ marginTop: 8 }} onClick={onClose}>Cerrar</button>
+      </div>
+    </div>
+  );
+}
+
 // ════════════════════════════════════════════════════
 // 1. PROFILE SETUP SCREEN
 // ════════════════════════════════════════════════════
@@ -92,7 +197,7 @@ function ProfileSetup({ onComplete }: { onComplete: (profile: UserProfile) => vo
         </button>
       </div>
       <div className="login-card fade-in" style={{ maxWidth: 440 }}>
-        <div className="login-logo"><PenLine size={36} /><h1>Fluent</h1></div>
+        <div className="login-logo"><img src="/logo.png" alt="Logo" style={{ width: 40, height: 40 }} /><h1>{application_name}</h1></div>
         <p className="login-subtitle">Configura tu perfil para empezar</p>
 
         <div style={{ textAlign: 'left', marginBottom: 20 }}>
@@ -252,8 +357,8 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
     <div className="dashboard-screen">
       <header className="dashboard-topbar">
         <div className="dashboard-topbar-left">
-          <PenLine size={20} style={{ color: 'var(--accent)' }} />
-          <span style={{ fontWeight: 600, fontSize: 15 }}>Fluent</span>
+          <img src="/logo.png" alt="Logo" style={{ width: 22, height: 22, objectFit: 'contain' }} />
+          <span style={{ fontWeight: 600, fontSize: 15 }}>{application_name}</span>
         </div>
         <div className="dashboard-topbar-right">
           <div className="header-user">
@@ -270,20 +375,21 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
       </header>
 
       <main className="dashboard-main">
-        <div className="dashboard-greeting fade-in">
-          <h1>Hola, {user.name}</h1>
-          <p>Tus espacios de trabajo colaborativos</p>
-        </div>
+        {/* LEFT COLUMN — Create / Join */}
+        <aside className="dashboard-left-panel fade-in">
+          <div className="dashboard-greeting">
+            <h1>Hola, {user.name}</h1>
+            <p>Tus espacios de trabajo colaborativos</p>
+          </div>
 
-        <div className="dashboard-grid fade-in">
           {/* Create new pool */}
           {!creating ? (
-            <div className="pool-card pool-card-new" onClick={() => setCreating(true)}>
-              <div className="pool-card-icon-big"><Plus size={32} /></div>
+            <div className="panel-action-card panel-action-card--new" onClick={() => setCreating(true)}>
+              <div className="pool-card-icon-big"><Plus size={28} /></div>
               <span className="pool-card-new-label">Crear nuevo espacio</span>
             </div>
           ) : (
-            <div className="pool-card pool-card-creating">
+            <div className="panel-action-card panel-action-card--creating">
               <input className="login-input" style={{ width: '100%', marginBottom: 8 }}
                 autoFocus placeholder="Nombre del espacio..."
                 value={newPoolName} onChange={(e) => setNewPoolName(e.target.value)}
@@ -296,8 +402,8 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
           )}
 
           {/* Join pool */}
-          <div className="pool-card pool-card-join">
-            <div className="pool-card-icon-big" style={{ opacity: 0.6 }}><Users size={28} /></div>
+          <div className="panel-action-card panel-action-card--join">
+            <div className="pool-card-icon-big" style={{ opacity: 0.6 }}><Users size={26} /></div>
             <span className="pool-card-new-label" style={{ fontSize: 13, marginBottom: 8 }}>Unirse a espacio</span>
             <div style={{ display: 'flex', gap: 6, width: '100%' }}>
               <input className="login-input" style={{ flex: 1, fontSize: 12 }}
@@ -308,55 +414,59 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
                 onClick={handleJoin} disabled={!joinId.trim()}>Unirse</button>
             </div>
           </div>
+        </aside>
 
-          {/* Existing pools — icons only, no emojis */}
-          {sorted.map((pool) => {
-            // Extraer IP para mostrar el share code
-            let shareCode = pool.id;
-            if (pool.signalingUrl) {
-              // extraer 192.168.x.x de ws://192.168.x.x:4444
-              try {
-                const url = new URL(pool.signalingUrl);
-                shareCode = `${pool.id}@${url.hostname}`;
-              } catch { /* ignore */ }
-            }
-
-            return (
-              <div key={pool.id} className="pool-card" onClick={() => { updatePoolLastOpened(pool.id); onOpenPool(pool.id, pool.name, pool.signalingUrl); }}>
-                <div className="pool-card-header">
-                  <div className="pool-card-icon-big" style={{ width: 36, height: 36 }}>
-                    <FileText size={18} />
+        {/* RIGHT AREA — Pools grid (scrollable horizontally) */}
+        <div className="dashboard-pools-area fade-in">
+          <div className="dashboard-grid">
+            {sorted.map((pool) => {
+              let shareCode = pool.id;
+              if (pool.signalingUrl) {
+                try {
+                  const url = new URL(pool.signalingUrl);
+                  shareCode = `${pool.id}@${url.hostname}`;
+                } catch { /* ignore */ }
+              }
+              return (
+                <div key={pool.id} className="pool-card" onClick={() => { updatePoolLastOpened(pool.id); onOpenPool(pool.id, pool.name, pool.signalingUrl); }}>
+                  <div className="pool-card-header">
+                    <div className="pool-card-icon-big" style={{ width: 36, height: 36 }}>
+                      <FileText size={18} />
+                    </div>
+                    <button className="pool-card-delete" onClick={(e) => handleDelete(pool.id, e)} title="Eliminar">
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                  <button className="pool-card-delete" onClick={(e) => handleDelete(pool.id, e)} title="Eliminar">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-                <h3 className="pool-card-title">{pool.name}</h3>
-                <div className="pool-card-meta">
-                  <Clock size={12} />
-                  <span>{formatDate(pool.lastOpened)}</span>
-                </div>
-
-                <div className="pool-card-id" style={{ marginTop: 6 }}>
-                  <span style={{ fontSize: 10, opacity: 0.5, display: 'block' }}>ID: {pool.id}</span>
-                  <div className="pool-id-copy"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigator.clipboard.writeText(shareCode);
-                      // Feedback visual simple
-                      const el = e.currentTarget;
-                      const original = el.innerHTML;
-                      el.innerText = "Copiado!";
-                      setTimeout(() => el.innerHTML = original, 1000);
-                    }}
-                    style={{ marginTop: 4, background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, cursor: 'copy', width: 'fit-content', maxWidth: '100%' }}
-                    title="Click para copiar código de invitación">
-                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)' }}>{shareCode}</span>
+                  <h3 className="pool-card-title">{pool.name}</h3>
+                  <div className="pool-card-meta">
+                    <Clock size={12} />
+                    <span>{formatDate(pool.lastOpened)}</span>
+                  </div>
+                  <div className="pool-card-id" style={{ marginTop: 6 }}>
+                    <span style={{ fontSize: 10, opacity: 0.5, display: 'block' }}>ID: {pool.id}</span>
+                    <div className="pool-id-copy"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(shareCode);
+                        const el = e.currentTarget;
+                        const original = el.innerHTML;
+                        el.innerText = 'Copiado!';
+                        setTimeout(() => el.innerHTML = original, 1000);
+                      }}
+                      style={{ marginTop: 4, background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, cursor: 'copy', width: 'fit-content', maxWidth: '100%' }}
+                      title="Click para copiar código de invitación">
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)' }}>{shareCode}</span>
+                    </div>
                   </div>
                 </div>
+              );
+            })}
+            {sorted.length === 0 && (
+              <div style={{ color: 'var(--text-tertiary)', fontSize: 13, padding: '40px 0', gridColumn: '1/-1', textAlign: 'center' }}>
+                No hay espacios aún. Crea uno desde el panel izquierdo.
               </div>
-            );
-          })}
+            )}
+          </div>
         </div>
       </main>
     </div>
@@ -384,6 +494,8 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
   const [copied, setCopied] = useState(false);
   const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
   const [dragOverTarget, setDragOverTarget] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showQr, setShowQr] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
     (localStorage.getItem('fluent-theme') as 'light' | 'dark') || 'dark'
   );
@@ -623,12 +735,21 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
     { label: 'Sub-pagina', icon: <FilePlus size={14} />, onClick: () => handleCreateSubPage(noteId) },
     ...notebooks.map(nb => ({ label: `Mover a ${nb.name}`, icon: <FolderOpen size={14} />, onClick: () => handleMoveToNotebook(noteId, nb.id) })),
     ...(notes.find(n => n.id === noteId)?.notebookId ? [{ label: 'Sacar de cuaderno', icon: <FileText size={14} />, onClick: () => handleMoveToNotebook(noteId, undefined) }] : []),
+    { label: 'Exportar (.md)', icon: <Download size={14} />, onClick: () => { const n = notes.find(x => x.id === noteId); if (n && services) exportNoteAs(services.doc, n, 'md'); } },
+    { label: 'Exportar (.txt)', icon: <Download size={14} />, onClick: () => { const n = notes.find(x => x.id === noteId); if (n && services) exportNoteAs(services.doc, n, 'txt'); } },
     { label: 'Eliminar', icon: <Trash2 size={14} />, onClick: () => handleDeleteNote(noteId), danger: true },
   ];
 
   const nbMenuItems = (nbId: string) => [
     { label: 'Renombrar', icon: <Edit3 size={14} />, onClick: () => { setRenamingId(nbId); setRenamingType('notebook'); } },
     { label: 'Nueva pagina aqui', icon: <FilePlus size={14} />, onClick: () => handleCreateNote(nbId) },
+    { label: 'Exportar cuaderno', icon: <Download size={14} />, onClick: () => {
+        if (!services) return;
+        const nbNotes = notes.filter(n => n.notebookId === nbId);
+        const nb = notebooks.find(n => n.id === nbId);
+        exportAllPoolAsZip(services.doc, nbNotes, nb ? [nb] : [], nb?.name || 'cuaderno');
+      }
+    },
     { label: 'Eliminar cuaderno', icon: <Trash2 size={14} />, onClick: () => handleDeleteNotebook(nbId), danger: true },
   ];
 
@@ -668,7 +789,7 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
       {contextMenu?.notebookId && <ContextMenu x={contextMenu.x} y={contextMenu.y} items={nbMenuItems(contextMenu.notebookId)} onClose={() => setContextMenu(null)} />}
 
       {/* SIDEBAR */}
-      <aside className="sidebar">
+      <aside className={`sidebar${sidebarCollapsed ? ' sidebar--collapsed' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-logo" style={{ cursor: 'pointer' }} onClick={onBack} title="Volver al dashboard">
             <ArrowLeft size={16} style={{ color: 'var(--text-tertiary)' }} />
@@ -680,6 +801,9 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
             </button>
             <button className="sidebar-action-btn" onClick={() => setCreatingNotebook(true)} title="Nuevo cuaderno">
               <FolderPlus size={16} />
+            </button>
+            <button className="sidebar-action-btn" onClick={() => { if (services) exportAllPoolAsZip(services.doc, notes, notebooks, poolName); }} title="Exportar todo">
+              <Download size={16} />
             </button>
           </div>
         </div>
@@ -787,15 +911,26 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
             {copied && <span className="copied-badge">Copiado</span>}
           </div>
           <button className="theme-toggle-btn" onClick={toggleTheme}>{theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}</button>
+          <button className="theme-toggle-btn" onClick={() => setShowQr(true)} title="Mostrar QR"><QrCode size={14} /></button>
         </div>
       </aside>
+
+      {/* SIDEBAR COLLAPSE TOGGLE — OUTSIDE aside so it's always visible */}
+      <button
+        className="sidebar-collapse-btn"
+        style={{ left: sidebarCollapsed ? 4 : 'calc(var(--sidebar-width) - 14px)' }}
+        onClick={() => setSidebarCollapsed(c => !c)}
+        title={sidebarCollapsed ? 'Expandir panel' : 'Colapsar panel'}
+      >
+        {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+      </button>
 
       {/* MAIN CONTENT */}
       <div className="main-content">
         <div className="main-header">
           <div className="main-header-left">
             <div className="breadcrumb">
-              <span style={{ cursor: 'pointer' }} onClick={onBack}>Fluent</span>
+              <span style={{ cursor: 'pointer' }} onClick={onBack}>{application_name}</span>
               <span className="breadcrumb-separator">/</span>
               <span>{poolName}</span>
               {activeNote?.notebookId && (
@@ -844,6 +979,23 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
           </div>
         )}
       </div>
+
+      {/* QR MODAL */}
+      {showQr && (
+        <QrModal
+          value={(() => {
+            let code = poolId;
+            if (signalingUrl) {
+              try {
+                const url = new URL(signalingUrl);
+                code = `${poolId}@${url.hostname}`;
+              } catch { /* ignore */ }
+            }
+            return code;
+          })()}
+          onClose={() => setShowQr(false)}
+        />
+      )}
     </div>
   );
 }
