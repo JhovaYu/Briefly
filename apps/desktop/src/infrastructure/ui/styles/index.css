@@ -4,6 +4,10 @@
    ============================================================ */
 
 /* ---------- CSS Variables ---------- */
+html {
+  zoom: var(--font-size-multiplier, 1);
+}
+
 :root {
   /* Light Mode (Notion-inspired) */
   --bg-primary: #ffffff;
@@ -21,7 +25,8 @@
   --bg-button-primary: #2383e2;
   --bg-button-primary-hover: #0b6bcb;
 
-  --text-primary: #37352f;
+  --text-primary-default: #37352f;
+  --text-primary: var(--custom-text-color, var(--text-primary-default));
   --text-secondary: #787774;
   --text-tertiary: #b4b4b0;
   --text-placeholder: #c4c4c0;
@@ -82,7 +87,8 @@
   --bg-button-primary: #7c5cbf;
   --bg-button-primary-hover: #6a4faa;
 
-  --text-primary: #dcddde;
+  --text-primary-default: #dcddde;
+  --text-primary: var(--custom-text-color, var(--text-primary-default));
   --text-secondary: #999999;
   --text-tertiary: #666666;
   --text-placeholder: #555555;
@@ -1102,6 +1108,7 @@ ul[data-type="taskList"] li>div {
 
 .login-input {
   flex: 1;
+  min-width: 0;
   padding: 9px 12px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-input);
@@ -1600,6 +1607,223 @@ ul[data-type="taskList"] li>div {
   align-content: start;
 }
 
+/* ============================================================
+   SETTINGS COMPONENTS
+   ============================================================ */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.settings-modal {
+  width: 60%;
+  height: 70vh;
+  min-height: 400px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  display: flex;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--border-color);
+}
+
+.settings-sidebar {
+  width: 220px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-color);
+  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-title {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0 16px 16px;
+  margin: 0;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.settings-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 24px;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-size: 14px;
+  color: var(--text-sidebar);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.settings-tab:hover {
+  background: var(--bg-sidebar-hover);
+  color: var(--text-primary);
+}
+
+.settings-tab.active {
+  background: var(--bg-sidebar-active);
+  font-weight: 600;
+  color: var(--text-primary);
+  border-left: 3px solid var(--accent);
+}
+
+.settings-content {
+  flex: 1;
+  padding: 40px;
+  overflow-y: auto;
+}
+
+.settings-section h3 {
+  font-size: 20px;
+  margin-top: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+}
+
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 0;
+  border-bottom: 1px dashed var(--border-light);
+  gap: 20px;
+}
+
+.settings-info label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.settings-desc {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin: 6px 0 0;
+  line-height: 1.4;
+}
+
+.settings-slider {
+  width: 160px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.settings-color-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.settings-color-btn:active {
+  transform: scale(0.9);
+}
+
+.settings-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  padding: 6px;
+}
+.settings-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Sidebar Resizer */
+.sidebar-resizer {
+  cursor: col-resize;
+  height: 100%;
+  width: 12px;
+  margin-left: -6px;
+  margin-right: -6px;
+  z-index: 100;
+  background: transparent;
+  position: relative;
+  transition: background 0.15s;
+}
+.sidebar-resizer:hover, .sidebar-resizer:active {
+  background: var(--divider);
+}
+
+.resizer-tooltip {
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%) translateX(2px);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-md);
+  transition: opacity 0.2s 0.4s, transform 0.2s 0.4s;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+.sidebar-resizer:hover .resizer-tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(6px);
+}
+.resizer-tooltip strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+body.is-resizing-sidebar .resizer-tooltip {
+  opacity: 0 !important;
+  transition: none !important;
+}
+
+body.is-resizing-sidebar .sidebar {
+  transition: none !important;
+}
+
+body.is-resizing-sidebar * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+/* Sidebar Toggle Header */
+.sidebar-header-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 6px;
+  margin-right: 8px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+}
+.sidebar-header-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
 .pool-card {
   background: var(--bg-sidebar);
   border: 1px solid var(--border);
