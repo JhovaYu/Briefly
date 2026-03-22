@@ -1,9 +1,9 @@
 {
-  "name": "fluent",
+  "name": "Briefly",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Notas colaborativas P2P — sin servidores, inspirado en Notion y Obsidian",
-  "author": "Fluent Team-MasterCoders",
+  "author": "MasterCoders AI",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
@@ -81,7 +81,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "concurrently": "^9.1.2",
-    "electron": "^35.0.0",
+    "electron": "35.0.0",
     "electron-builder": "^26.0.0",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",

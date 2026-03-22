@@ -339,7 +339,7 @@ function ProfileSetup({ onComplete }: { onComplete: (profile: UserProfile) => vo
         </button>
       </div>
       <div className="login-card fade-in" style={{ maxWidth: 440 }}>
-        <div className="login-logo"><img src="/logo.png" alt="Logo" style={{ width: 40, height: 40 }} /><h1>{application_name}</h1></div>
+        <div className="login-logo"><img src="./logo.png" alt="Logo" style={{ width: 40, height: 40 }} /><h1>{application_name}</h1></div>
         <p className="login-subtitle">Configura tu perfil para empezar</p>
 
         <div style={{ textAlign: 'left', marginBottom: 20 }}>
@@ -501,7 +501,7 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
     <div className="dashboard-screen">
       <header className="dashboard-topbar">
         <div className="dashboard-topbar-left">
-          <img src="/logo.png" alt="Logo" style={{ width: 22, height: 22, objectFit: 'contain' }} />
+          <img src="./logo.png" alt="Logo" style={{ width: 22, height: 22, objectFit: 'contain' }} />
           <span style={{ fontWeight: 600, fontSize: 15 }}>{application_name}</span>
         </div>
         <div className="dashboard-topbar-right">
