@@ -267,10 +267,11 @@ function SettingsModal({ onClose, settings }: { onClose: () => void, settings: R
                       title={c}
                     />
                   ))}
-                  <div style={{ position: 'relative', width: 26, height: 26, borderRadius: '50%', overflow: 'hidden', border: '1px dashed var(--text-tertiary)', flexShrink: 0 }} title="Elegir nuevo color">
+                  <div style={{ position: 'relative', width: 26, height: 26, borderRadius: '50%', border: '1px dashed var(--text-tertiary)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }} title="Elegir nuevo color">
+                    <Plus size={14} />
                     <input 
                       type="color" 
-                      style={{ width: 40, height: 40, position: 'absolute', top: -5, left: -5, cursor: 'pointer', padding: 0, border: 'none' }} 
+                      style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, cursor: 'pointer', padding: 0, border: 'none', opacity: 0 }} 
                       value={settings.fontColor || '#000000'} 
                       onChange={e => {
                         const newColor = e.target.value;
@@ -653,6 +654,7 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
   const [sidebarWidth, setSidebarWidth] = useState<number>(260);
   const isDraggingRef = useRef(false);
   const sidebarRef = useRef<HTMLElement>(null);
+  const sidebarCollapseBtnRef = useRef<HTMLButtonElement>(null);
 
   const handleMouseDownResizer = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -673,6 +675,9 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
          // Actualización DIRECTA del DOM para latencia cero ("efecto laser")
          sidebarRef.current.style.width = `${newWidth}px`;
          sidebarRef.current.style.minWidth = `${newWidth}px`;
+         if (sidebarCollapseBtnRef.current && settings.sidebarStyle === 'floating') {
+            sidebarCollapseBtnRef.current.style.left = `${newWidth - 14}px`;
+         }
       }
     };
 
@@ -1134,6 +1139,7 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
       {/* SIDEBAR COLLAPSE TOGGLE — OUTSIDE aside so it's always visible */}
       {settings.sidebarStyle === 'floating' && (
         <button
+          ref={sidebarCollapseBtnRef}
           className="sidebar-collapse-btn"
           style={{ left: sidebarCollapsed ? 4 : sidebarWidth - 14 }}
           onClick={() => setSidebarCollapsed(c => !c)}

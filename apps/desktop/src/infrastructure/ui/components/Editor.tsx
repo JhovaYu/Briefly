@@ -10,6 +10,7 @@ import { TableHeader } from '@tiptap/extension-table-header';
 import { Extension } from '@tiptap/core';
 import * as Y from 'yjs';
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Bold,
     Italic,
@@ -144,11 +145,13 @@ function MarginPopover({
     onChange,
     onFullWidth,
     onClose,
+    anchorRect,
 }: {
     margin: number;
     onChange: (v: number) => void;
     onFullWidth: () => void;
     onClose: () => void;
+    anchorRect: DOMRect | null;
 }) {
     const ref = useRef<HTMLDivElement>(null);
 
@@ -156,12 +159,21 @@ function MarginPopover({
         const onClick = (e: MouseEvent) => {
             if (ref.current && !ref.current.contains(e.target as Node)) onClose();
         };
-        document.addEventListener('mousedown', onClick);
+        setTimeout(() => document.addEventListener('mousedown', onClick), 0);
         return () => document.removeEventListener('mousedown', onClick);
     }, [onClose]);
 
-    return (
-        <div ref={ref} className="margin-popover">
+    if (!anchorRect) return null;
+
+    const style: React.CSSProperties = {
+        position: 'fixed',
+        top: anchorRect.bottom + 8,
+        left: anchorRect.right - 240,
+        zIndex: 9999,
+    };
+
+    return createPortal(
+        <div ref={ref} className="margin-popover" style={style}>
             <div className="margin-popover-title">Márgenes de página</div>
             <div className="margin-popover-row">
                 <label className="margin-popover-label">Ancho</label>
@@ -186,13 +198,15 @@ function MarginPopover({
                 <Maximize2 size={14} />
                 Ancho completo
             </button>
-        </div>
+        </div>,
+        document.body
     );
 }
 
 export const Editor = ({ doc, provider, user, noteId, noteTitle, onTitleChange }: EditorProps) => {
     const [tableMenu, setTableMenu] = useState<TableMenuState>({ visible: false, x: 0, y: 0 });
     const [showMarginPopover, setShowMarginPopover] = useState(false);
+    const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
 
     // ─── Persistent margin state (localStorage) ───
     const [marginPercent, setMarginPercent] = useState<number>(() => {
@@ -388,7 +402,10 @@ export const Editor = ({ doc, provider, user, noteId, noteTitle, onTitleChange }
                         title="Ajustar márgenes"
                         type="button"
                         tabIndex={-1}
-                        onClick={() => setShowMarginPopover(!showMarginPopover)}
+                        onClick={(e) => {
+                            setAnchorRect(e.currentTarget.getBoundingClientRect());
+                            setShowMarginPopover(!showMarginPopover);
+                        }}
                     >
                         <SlidersHorizontal />
                     </button>
@@ -398,6 +415,7 @@ export const Editor = ({ doc, provider, user, noteId, noteTitle, onTitleChange }
                             onChange={setMarginPercent}
                             onFullWidth={() => { setMarginPercent(0); setShowMarginPopover(false); }}
                             onClose={() => setShowMarginPopover(false)}
+                            anchorRect={anchorRect}
                         />
                     )}
                 </div>
