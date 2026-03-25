@@ -570,12 +570,8 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
           <div className="dashboard-grid">
             {sorted.map((pool) => {
               let shareCode = pool.id;
-              if (pool.signalingUrl) {
-                try {
-                  const url = new URL(pool.signalingUrl);
-                  shareCode = `${pool.id}@${url.hostname}`;
-                } catch { /* ignore */ }
-              }
+              // Ya no necesitamos añadir el '@ip' porque nuestro backend es global (Railway)
+              // Dejamos el copy/paste simple con el poolId íntegro.
               return (
                 <div key={pool.id} className="pool-card" onClick={() => { updatePoolLastOpened(pool.id); onOpenPool(pool.id, pool.name, pool.signalingUrl); }}>
                   <div className="pool-card-header">
