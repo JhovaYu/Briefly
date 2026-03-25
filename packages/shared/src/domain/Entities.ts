@@ -18,6 +18,25 @@ export interface Notebook {
     collapsed?: boolean;     // UI state: collapsed in sidebar
 }
 
+export type ReminderTiming =
+    | 'before-start'
+    | 'at-start'
+    | 'after-start'
+    | 'at-midpoint'
+    | 'before-end'
+    | 'at-end'
+    | 'after-end'
+    | 'on-date';
+
+export interface ReminderConfig {
+    id: string;
+    timing: ReminderTiming;
+    minutesBefore?: number;
+    minutesAfter?: number;
+    dateTimestamp?: number;
+    timeString?: string;
+}
+
 export type TaskState = 'pending' | 'working' | 'done';
 
 export interface Task {
@@ -30,6 +49,18 @@ export interface Task {
     description?: string;
     createdAt: number;
     completedAt?: number;
+    
+    // Linked Event Features
+    subtasks?: Array<{ id: string; text: string; done: boolean }>;
+    linkedEventId?: string;
+    taskColor?: string;
+    taskLinks?: string[];
+    taskAttachments?: Array<{ id: string; name: string; type: string; size: number; dataUrl: string }>;
+    dueTimeStart?: string;
+    dueTimeEnd?: string;
+    hasTime?: boolean;
+    repeat?: 'none' | 'daily' | 'weekly' | 'monthly' | 'custom';
+    reminders?: ReminderConfig[];
 }
 
 export interface TaskList {
@@ -120,17 +151,46 @@ export interface ScheduleBoard {
     createdAt: number;
 }
 
+export type EventColor = 'blue' | 'cyan' | 'teal' | 'green' | 'lime' | 'yellow' | 'orange' | 'red' | 'pink' | 'purple' | 'violet' | 'gray';
+
 export interface ScheduleEvent {
     id: string;
     boardId: string;
     title: string;
     dayOfWeek: number;
-    startTime: string; // 'HH:mm'
-    endTime: string; // 'HH:mm'
-    color?: string;
+    startTime: string; // 'HH:mm' (timeStart)
+    endTime: string; // 'HH:mm' (timeEnd)
+    color?: EventColor | string;
     professor?: string;
-    type?: string;
+    type?: string;     // eventType
     building?: string;
-    room?: string;
+    room?: string;     // classroom
+    
+    // Expanded Fields for EventForm
+    tema?: string;
+    startDate?: number; // timestamp
+    endDate?: number;   // timestamp
+    allDay?: boolean;
+    noteForDay?: string; // Daily user note overlay
+
+    links?: string[];
+    attachments?: Array<{
+        id: string;
+        name: string;
+        type: 'image' | 'audio' | 'document';
+        size: number;
+        dataUrl: string;
+    }>;
+    
+    repeat?: 'none' | 'weekly' | 'daily' | 'custom';
+    repeatDay?: string;
+    repeatPeriod?: 'manual' | 'auto';
+    repeatStart?: number;
+    repeatEnd?: number;
+    
+    reminderEnabled?: boolean;
+    reminderMinutes?: number[]; // Legacy array logic
+    reminders?: ReminderConfig[];
+    
     createdAt: number;
 }
