@@ -50,9 +50,12 @@ export class YjsWebRTCAdapter implements NetworkAdapter {
             return;
         }
 
-        // Si se provee una URL específica (ej: IP del host), usarla.
-        // Si no, usar la configuración existente o el default (localhost:4444).
-        const signaling = signalingUrl ? [signalingUrl] : (this.config.signalingServers || DEFAULT_SIGNALING);
+        // En transición a Cloud: Ignoramos el signalingUrl local heredado para forzar que todos usen Railway (.env)
+        // excepto si el usuario pasa explícitamente una URL remota distinta (como otro host Railway)
+        const isLegacyLocal = signalingUrl && (signalingUrl.includes('localhost') || signalingUrl.includes('127.0.0.1') || signalingUrl.match(/\d+\.\d+\.\d+\.\d+/));
+        const finalSignalingUrl = (signalingUrl && !isLegacyLocal) ? [signalingUrl] : undefined;
+        
+        const signaling = finalSignalingUrl || this.config.signalingServers || DEFAULT_SIGNALING;
         const iceServers = this.config.iceServers || DEFAULT_ICE_SERVERS;
 
         this.provider = new WebrtcProvider(poolId, this.doc, {
