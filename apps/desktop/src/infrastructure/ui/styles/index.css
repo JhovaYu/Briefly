@@ -87,15 +87,15 @@ html {
   --bg-button-primary: #7c5cbf;
   --bg-button-primary-hover: #6a4faa;
 
-  --text-primary-default: #dcddde;
+  --text-primary-default: #f3f4f6;
   --text-primary: var(--custom-text-color, var(--text-primary-default));
-  --text-secondary: #999999;
-  --text-tertiary: #666666;
-  --text-placeholder: #555555;
+  --text-secondary: #b3b3b3;
+  --text-tertiary: #919191;
+  --text-placeholder: #737373;
   --text-link: #a78bfa;
   --text-code: #e879a0;
   --text-on-primary: #ffffff;
-  --text-sidebar: #cccccc;
+  --text-sidebar: #d4d4d4;
 
   --border-color: #363636;
   --border-light: #2e2e2e;
