@@ -9,16 +9,12 @@ import type { Peer } from '@tuxnotas/shared';
 const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    // TURN fallback usando variables de entorno (Metered)
     {
-        urls: 'turn:openrelay.metered.ca:443',
-        username: 'openrelayproject',
-        credential: 'openrelayproject',
-    },
-    {
-        urls: 'turns:openrelay.metered.ca:443?transport=tcp',
-        username: 'openrelayproject',
-        credential: 'openrelayproject',
-    },
+        urls: import.meta.env.VITE_TURN_URL || 'turn:free.metered.ca:80',
+        username: import.meta.env.VITE_TURN_USERNAME || 'default_user',
+        credential: import.meta.env.VITE_TURN_PASSWORD || 'default_pass',
+    }
 ];
 
 /**
@@ -26,7 +22,7 @@ const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
  * SOLO usamos el signaling LOCAL en ws://localhost:4444.
  */
 const DEFAULT_SIGNALING = [
-    'ws://localhost:4444',
+    import.meta.env.VITE_SIGNALING_SERVER || 'ws://localhost:4444',
 ];
 
 export interface NetworkConfig {
@@ -50,7 +46,7 @@ export class YjsWebRTCAdapter implements NetworkAdapter {
     async connect(poolId: string, signalingUrl?: string): Promise<void> {
         // Guard: don't connect twice to the same room
         if (this.connected && this.provider) {
-            console.log(`[Fluent] Already connected to: ${poolId}, skipping`);
+            console.log(`[Briefly] Already connected to: ${poolId}, skipping`);
             return;
         }
 
@@ -75,9 +71,9 @@ export class YjsWebRTCAdapter implements NetworkAdapter {
             this.handleAwarenessUpdate();
         });
 
-        console.log(`[Fluent] Conectado al pool P2P: ${poolId}`);
-        console.log(`[Fluent] Signaling servers:`, signaling);
-        console.log(`[Fluent] ICE Servers configurados:`, iceServers.length);
+        console.log(`[Briefly] Conectado al pool P2P: ${poolId}`);
+        console.log(`[Briefly] Signaling servers:`, signaling);
+        console.log(`[Briefly] ICE Servers configurados:`, iceServers.length);
     }
 
     disconnect(): void {
@@ -85,7 +81,7 @@ export class YjsWebRTCAdapter implements NetworkAdapter {
             try {
                 this.provider.destroy();
             } catch (err) {
-                console.warn('[Fluent] Error during provider.destroy():', err);
+                console.warn('[Briefly] Error during provider.destroy():', err);
             }
             this.provider = null;
         }
