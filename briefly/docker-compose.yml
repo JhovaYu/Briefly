@@ -1,0 +1,191 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: briefly_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - briefly_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: briefly_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - briefly_net
+
+  auth:
+    build: ./auth_service
+    container_name: briefly_auth
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - briefly_net
+
+  notes:
+    build: ./note_service
+    container_name: briefly_notes
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      AUTH_URL: ${AUTH_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth:
+        condition: service_started
+    networks:
+      - briefly_net
+
+  tasks:
+    build: ./task_service
+    container_name: briefly_tasks
+    ports:
+      - "8003:8003"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      PLANNER_URL: ${PLANNER_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth:
+        condition: service_started
+      planner:
+        condition: service_started
+    networks:
+      - briefly_net
+
+  planner:
+    build: ./planner_service
+    container_name: briefly_planner
+    ports:
+      - "8004:8004"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth:
+        condition: service_started
+    networks:
+      - briefly_net
+
+  kanban:
+    build: ./kanban_service
+    container_name: briefly_kanban
+    ports:
+      - "8005:8005"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      COLLABORATION_URL: ${COLLABORATION_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth:
+        condition: service_started
+    networks:
+      - briefly_net
+
+  collaboration:
+    build: ./collaboration_service
+    container_name: briefly_collaboration
+    ports:
+      - "8006:8006"
+    environment:
+      REDIS_URL: ${REDIS_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+    depends_on:
+      redis:
+        condition: service_healthy
+      auth:
+        condition: service_started
+    networks:
+      - briefly_net
+
+  frontend:
+    build: ./frontend
+    container_name: briefly_frontend
+    ports:
+      - "3001:3000"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost
+      NEXT_PUBLIC_AUTH_URL: http://localhost:8001
+      NEXT_PUBLIC_NOTES_URL: http://localhost:8002
+      NEXT_PUBLIC_TASKS_URL: http://localhost:8003
+      NEXT_PUBLIC_PLANNER_URL: http://localhost:8004
+      NEXT_PUBLIC_KANBAN_URL: http://localhost:8005
+      NEXT_PUBLIC_COLLABORATION_WS: ws://localhost:8006
+    depends_on:
+      - auth
+      - notes
+      - tasks
+      - planner
+      - kanban
+      - collaboration
+    networks:
+      - briefly_net
+
+  seed:
+    build:
+      context: .
+      dockerfile: scripts/Dockerfile
+    container_name: briefly_seed
+    environment:
+      AUTH_URL: http://auth:8001
+      NOTES_URL: http://notes:8002
+      TASKS_URL: http://tasks:8003
+      PLANNER_URL: http://planner:8004
+      KANBAN_URL: http://kanban:8005
+    depends_on:
+      - auth
+      - notes
+      - tasks
+      - planner
+      - kanban
+    restart: on-failure
+    networks:
+      - briefly_net
+
+volumes:
+  pgdata:
+
+networks:
+  briefly_net:
+    driver: bridge

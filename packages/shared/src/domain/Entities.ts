@@ -78,3 +78,59 @@ export interface PoolInfo {
     createdAt: number;
     signalingUrl?: string;
 }
+
+// ─── Kanban Entities ───
+
+export interface KanbanBoard {
+    id: string;
+    poolId: string;
+    name: string;
+    createdAt: number;
+}
+
+export interface KanbanColumn {
+    id: string;
+    boardId: string;
+    name: string;
+    color?: string;
+    order: number;
+}
+
+export interface KanbanCard {
+    id: string;
+    boardId: string;
+    columnId: string;
+    title: string;
+    description?: string;
+    createdAt: number;
+    updatedAt: number;
+    assigneeId?: string;
+}
+
+// ─── Schedule Entities ───
+
+export interface ScheduleBoard {
+    id: string;
+    poolId: string;
+    name: string;
+    timeRounding: boolean;
+    showWeekends: boolean;
+    numberOfWeeks: number | 'custom';
+    nonWorkingDays: string[];
+    createdAt: number;
+}
+
+export interface ScheduleEvent {
+    id: string;
+    boardId: string;
+    title: string;
+    dayOfWeek: number;
+    startTime: string; // 'HH:mm'
+    endTime: string; // 'HH:mm'
+    color?: string;
+    professor?: string;
+    type?: string;
+    building?: string;
+    room?: string;
+    createdAt: number;
+}

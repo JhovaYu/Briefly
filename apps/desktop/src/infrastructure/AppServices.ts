@@ -13,19 +13,23 @@ let noteCounter = 0;
  */
 const instanceCache = new Map<string, { svc: AppServices; refCount: number }>();
 
-import { TaskService } from '@tuxnotas/shared';
+import { TaskService, KanbanService, ScheduleService } from '@tuxnotas/shared';
 
 export class AppServices implements CollaborationService {
     public doc: Y.Doc;
     public network: YjsWebRTCAdapter;
     public persistence: YjsIndexedDBAdapter;
     public tasks: TaskService;
+    public kanban: KanbanService;
+    public schedule: ScheduleService;
 
     constructor() {
         this.doc = new Y.Doc();
         this.network = new YjsWebRTCAdapter(this.doc);
         this.persistence = new YjsIndexedDBAdapter(this.doc);
         this.tasks = new TaskService(this.doc);
+        this.kanban = new KanbanService(this.doc);
+        this.schedule = new ScheduleService(this.doc);
     }
 
     async initialize(poolId: string = 'fluent-default-pool', signalingUrl?: string): Promise<void> {

@@ -7,10 +7,12 @@ import {
   MoreHorizontal, ChevronRight, ChevronDown, FolderPlus, Copy,
   Edit3, FilePlus, FolderOpen, BookOpen, X, Clipboard, GripVertical,
   ArrowLeft, Users, Clock, Zap, ListChecks, ChevronLeft, Download, QrCode,
-  Settings, Type, Sidebar
+  Settings, Type, Sidebar, LayoutTemplate, CalendarDays
 } from 'lucide-react';
 import type { Note, Notebook, TaskList } from '@tuxnotas/shared';
 import { TaskBoard } from './infrastructure/ui/components/TaskBoard';
+import { KanbanBoard } from './infrastructure/ui/components/KanbanBoard';
+import { ScheduleBoard } from './infrastructure/ui/components/ScheduleBoard';
 import {
   getUserProfile, saveUserProfile, getSavedPools, addPool, removePool,
   updatePoolLastOpened,
@@ -634,6 +636,8 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [activeNotebookId, setActiveNotebookId] = useState<string | null>(null);
+  const [showKanban, setShowKanban] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; noteId?: string; notebookId?: string } | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -962,7 +966,7 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
       <div key={note.id}>
         <div className={`sidebar-note-item ${isActive ? 'active' : ''} ${draggedNoteId === note.id ? 'dragging' : ''}`}
           style={{ paddingLeft: `${8 + depth * 16}px` }}
-          onClick={() => { setActiveNoteId(note.id); setActiveNotebookId(note.notebookId || null); }}
+          onClick={() => { setActiveNoteId(note.id); setActiveNotebookId(note.notebookId || null); setShowKanban(false); setShowSchedule(false); }}
           role="button" tabIndex={0}
           onContextMenu={(e) => openNoteMenu(e, note.id)}
           draggable onDragStart={(e) => handleDragStart(e, note.id)} onDragEnd={() => { setDraggedNoteId(null); setDragOverTarget(null); }}>
@@ -1020,12 +1024,29 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
         </div>
 
         <div className="sidebar-notes">
+          {/* VISTAS SECTION */}
+          <div className="sidebar-section-label">Vistas</div>
+          <div 
+            className={`sidebar-note-item ${showKanban ? 'active' : ''}`}
+            onClick={() => { setShowKanban(true); setShowSchedule(false); setActiveNoteId(null); setActiveTaskListId(null); }}
+            style={{ paddingLeft: 8 }}>
+            <LayoutTemplate className="note-icon" size={15} />
+            <span className="note-title">Tablero Kanban</span>
+          </div>
+          <div 
+            className={`sidebar-note-item ${showSchedule ? 'active' : ''}`}
+            onClick={() => { setShowSchedule(true); setShowKanban(false); setActiveNoteId(null); setActiveTaskListId(null); }}
+            style={{ paddingLeft: 8 }}>
+            <CalendarDays className="note-icon" size={15} />
+            <span className="note-title">Horario Escolar</span>
+          </div>
+
           {/* TASK LISTS SECTION */}
           <div className="sidebar-section-label">Listas de Tareas</div>
           {taskLists.map(list => (
             <div key={list.id}
               className={`sidebar-note-item ${activeTaskListId === list.id ? 'active' : ''}`}
-              onClick={() => { setActiveTaskListId(list.id); setActiveNoteId(null); }}
+              onClick={() => { setActiveTaskListId(list.id); setActiveNoteId(null); setShowKanban(false); setShowSchedule(false); }}
               style={{ paddingLeft: 8 }}>
               <ListChecks className="note-icon" size={15} />
               <span className="note-title">{list.name}</span>
@@ -1185,7 +1206,19 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
           </div>
         </div>
 
-        {activeTaskListId && services ? (
+        {showSchedule && services ? (
+          <ScheduleBoard
+            poolId={poolId}
+            service={services.schedule}
+            doc={services.doc}
+          />
+        ) : showKanban && services ? (
+          <KanbanBoard
+            poolId={poolId}
+            service={services.kanban}
+            doc={services.doc}
+          />
+        ) : activeTaskListId && services ? (
           <TaskBoard
             taskList={taskLists.find(t => t.id === activeTaskListId)!}
             service={services.tasks}

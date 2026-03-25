@@ -2041,3 +2041,200 @@ body.is-resizing-sidebar * {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
 }
+
+/* ============================================================
+   KANBAN BOARD
+   ============================================================ */
+
+.kanban-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.kanban-empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  gap: 16px;
+}
+.kanban-empty-icon { opacity: 0.5; }
+.kanban-empty-state h2 { color: var(--text-primary); font-size: 18px; margin: 0; }
+
+.kanban-btn-primary {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--accent); color: #fff;
+  border: none; padding: 8px 16px; border-radius: var(--radius-md);
+  cursor: pointer; font-weight: 500; font-size: 13px;
+}
+.kanban-btn-primary:hover { background: var(--accent-hover); }
+
+.kanban-create-inline {
+  display: flex; gap: 8px;
+}
+.kanban-create-inline input {
+  padding: 6px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-input); color: var(--text-primary);
+}
+.kanban-create-inline button {
+  padding: 6px 12px; border: none; background: var(--accent); color: #fff; border-radius: var(--radius-md); cursor: pointer;
+}
+
+.kanban-header {
+  padding: 12px 24px 0; border-bottom: 1px solid var(--border-light);
+}
+.kanban-board-tabs {
+  display: flex; gap: 4px; overflow-x: auto;
+}
+.kanban-board-tab {
+  display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: var(--radius-md) var(--radius-md) 0 0;
+  cursor: pointer; color: var(--text-secondary); font-size: 13px; font-weight: 500;
+  border: 1px solid transparent; border-bottom: none;
+}
+.kanban-board-tab:hover { background: var(--bg-hover); color: var(--text-primary); }
+.kanban-board-tab.active {
+  background: var(--bg-card); color: var(--text-primary);
+  border-color: var(--border-light); box-shadow: 0 -1px 4px rgba(0,0,0,0.02);
+}
+.kanban-add-board-btn { padding: 8px; }
+.kanban-board-tab-creating input { border: none; background: transparent; color: var(--text-primary); outline: none; width: 100px; }
+
+.kanban-board-delete {
+  background: transparent; border: none; color: var(--text-tertiary); cursor: pointer; padding: 0; opacity: 0;
+}
+.kanban-board-tab:hover .kanban-board-delete { opacity: 1; }
+.kanban-board-delete:hover { color: var(--color-error); }
+
+.kanban-board-area {
+  flex: 1; display: flex; gap: 16px; padding: 24px; overflow-x: auto; overflow-y: hidden; background: var(--bg-secondary);
+}
+
+.kanban-col {
+  width: 280px; min-width: 280px; display: flex; flex-direction: column; gap: 12px;
+}
+
+.kanban-col-header {
+  display: flex; align-items: center; justify-content: space-between; padding: 0 4px;
+}
+.kanban-col-name { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+.kanban-col-count { font-size: 12px; color: var(--text-tertiary); font-weight: 500; margin-left: auto; margin-right: 8px; }
+.kanban-col-delete { background: transparent; border: none; color: var(--text-tertiary); cursor: pointer; opacity: 0; }
+.kanban-col-header:hover .kanban-col-delete { opacity: 1; }
+.kanban-col-delete:hover { color: var(--color-error); }
+
+.kanban-col-cards {
+  flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-bottom: 24px;
+}
+
+.kanban-card {
+  background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md);
+  padding: 12px 14px; box-shadow: var(--shadow-sm); cursor: grab; position: relative;
+}
+.kanban-card:active { cursor: grabbing; box-shadow: var(--shadow-md); }
+.kanban-card.dragging { opacity: 0.5; }
+
+.kanban-card-title { font-size: 13px; color: var(--text-primary); line-height: 1.4; margin-bottom: 8px; }
+.kanban-card-meta { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-tertiary); }
+.kanban-card-delete {
+  position: absolute; top: 8px; right: 8px; background: transparent; border: none; color: var(--color-error); cursor: pointer; opacity: 0;
+}
+.kanban-card:hover .kanban-card-delete { opacity: 1; }
+
+.kanban-add-card-btn {
+  display: flex; align-items: center; gap: 6px; padding: 8px; background: transparent; border: none;
+  color: var(--text-secondary); cursor: pointer; border-radius: var(--radius-sm); justify-content: flex-start;
+}
+.kanban-add-card-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.kanban-create-card { background: var(--bg-card); border-radius: var(--radius-md); border: 1px solid var(--border-color); padding: 8px; }
+.kanban-create-card textarea { width: 100%; border: none; background: transparent; resize: none; color: var(--text-primary); outline: none; font-family: var(--font-ui); font-size: 13px; min-height: 60px; }
+.kanban-create-card-actions { display: flex; gap: 8px; margin-top: 8px; }
+.kanban-create-card-actions .btn-save { background: var(--accent); color: #fff; border: none; padding: 4px 10px; border-radius: var(--radius-sm); font-size: 12px; cursor: pointer; }
+.kanban-create-card-actions .btn-cancel { background: transparent; color: var(--text-secondary); border: none; font-size: 12px; cursor: pointer; }
+
+.kanban-add-col-btn {
+  display: flex; align-items: center; gap: 6px; padding: 12px; background: var(--bg-hover); border: 1px dashed var(--border-color);
+  color: var(--text-secondary); cursor: pointer; justify-content: center; border-radius: var(--radius-md); font-weight: 500;
+}
+.kanban-add-col-btn:hover { background: var(--bg-card); color: var(--text-primary); border-style: solid; }
+
+.kanban-create-col input {
+  width: 100%; padding: 8px 12px; border: 1px solid var(--accent); border-radius: var(--radius-md); background: var(--bg-input); color: var(--text-primary); outline: none;
+}
+
+/* ============================================================
+   SCHEDULE BOARD
+   ============================================================ */
+.schedule-wrapper { flex: 1; display: flex; flex-direction: column; background: var(--bg-primary); overflow: hidden; }
+.schedule-header { padding: 12px 24px 0; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: flex-end; }
+.schedule-board-tabs { display: flex; gap: 4px; overflow-x: auto; flex: 1; }
+.schedule-board-tab { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: var(--radius-md) var(--radius-md) 0 0; cursor: pointer; color: var(--text-secondary); font-size: 13px; font-weight: 500; border: 1px solid transparent; border-bottom: none; }
+.schedule-board-tab:hover { background: var(--bg-hover); color: var(--text-primary); }
+.schedule-board-tab.active { background: var(--bg-card); color: var(--text-primary); border-color: var(--border-light); box-shadow: 0 -1px 4px rgba(0,0,0,0.02); }
+.schedule-add-board-btn { padding: 8px; }
+.schedule-header-actions { margin-bottom: 8px; display: flex; gap: 8px; }
+.schedule-action-btn { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); border-radius: var(--radius-md); cursor: pointer; font-size: 13px; }
+.schedule-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.schedule-create-floater { position: absolute; z-index: 100; top: 60px; left: 50%; transform: translateX(-50%); background: var(--bg-card); padding: 12px; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); border: 1px solid var(--border-color); }
+.schedule-create-floater input { border: none; background: var(--bg-input); padding: 8px 12px; border-radius: var(--radius-md); color: var(--text-primary); outline: none; }
+
+.schedule-main-area { flex: 1; display: flex; overflow: hidden; position: relative; }
+
+.schedule-settings-panel { width: 300px; border-right: 1px solid var(--border-light); background: var(--bg-card); padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; z-index: 100; }
+.schedule-settings-panel h3 { font-size: 14px; margin: 0; color: var(--text-primary); }
+.schedule-setting-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--text-secondary); }
+.schedule-setting-row select { padding: 4px 8px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-input); color: var(--text-primary); }
+
+.schedule-mini-calendar h4 { font-size: 13px; color: var(--text-primary); margin: 0 0 8px 0; }
+.mini-cal-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.mini-cal-badge { display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: var(--bg-hover); border: 1px solid var(--border-color); border-radius: 12px; font-size: 11px; color: var(--text-secondary); cursor: pointer; }
+.mini-cal-badge:hover { color: var(--color-error); border-color: var(--color-error); }
+.mini-cal-input { padding: 4px 8px; border: 1px dashed var(--border-color); border-radius: var(--radius-md); background: transparent; color: var(--text-primary); font-size: 11px; outline: none; }
+
+.schedule-grid-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.schedule-grid-header { display: flex; border-bottom: 1px solid var(--border-light); background: var(--bg-secondary); }
+.schedule-grid-corner { width: 60px; min-width: 60px; border-right: 1px solid var(--border-light); display: flex; align-items: center; justify-content: center; }
+.schedule-add-btn { background: transparent; border: none; color: var(--text-tertiary); cursor: pointer; padding: 8px; display: flex; align-items: center; gap: 4px; font-size: 11px; }
+.schedule-add-btn:hover { color: var(--accent); }
+
+.schedule-grid-day { flex: 1; text-align: center; padding: 12px 0; font-size: 13px; font-weight: 500; color: var(--text-secondary); border-right: 1px solid var(--border-light); }
+.schedule-grid-day:last-child { border-right: none; }
+
+.schedule-grid-body { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; background: var(--bg-primary); }
+.schedule-row { display: flex; height: 60px; border-bottom: 1px solid var(--border-light); box-sizing: border-box; }
+.schedule-time-label { width: 60px; min-width: 60px; font-size: 11px; color: var(--text-tertiary); text-align: right; padding-right: 8px; position: relative; top: -6px; border-right: 1px solid var(--border-light); opacity: 0.8; }
+.schedule-cells-row { flex: 1; display: flex; }
+.schedule-cell { flex: 1; border-right: 1px dashed var(--border-light); }
+.schedule-cell:last-child { border-right: none; }
+
+.schedule-events-layer { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+.schedule-event-card { position: absolute; background: var(--bg-card); border: 1px solid var(--border-color); border-left-width: 4px; border-radius: var(--radius-md); padding: 8px; box-shadow: var(--shadow-sm); cursor: grab; z-index: 10; pointer-events: auto; overflow: hidden; display: flex; flex-direction: column; gap: 4px; transition: box-shadow 0.2s, filter 0.2s; }
+.schedule-event-card:hover { filter: brightness(1.05); }
+.schedule-event-card:active { cursor: grabbing; box-shadow: var(--shadow-md); z-index: 100; filter: brightness(1.1); }
+.schedule-event-card .card-title { font-size: 12px; font-weight: 600; color: var(--text-primary); line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+.schedule-event-card .card-meta { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-secondary); flex-shrink: 0; }
+.schedule-event-card .card-time { font-size: 10px; color: var(--text-tertiary); margin-top: auto; }
+
+.schedule-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+.schedule-modal { background: var(--bg-primary); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); padding: 24px; min-width: 400px; display: flex; flex-direction: column; gap: 16px; border: 1px solid var(--border-color); }
+.schedule-form { display: flex; flex-direction: column; gap: 12px; }
+.schedule-form label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+.schedule-form input, .schedule-form select { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-input); color: var(--text-primary); font-size: 13px; outline: none; }
+.schedule-form input:focus, .schedule-form select:focus { border-color: var(--accent); }
+.schedule-form-row { display: flex; gap: 12px; }
+.schedule-form-row > * { flex: 1; }
+.schedule-modal-actions { display: flex; margin-top: 16px; align-items: center; }
+
+.schedule-empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-tertiary); gap: 16px; background: var(--bg-primary); }
+.schedule-empty-icon { opacity: 0.5; }
+.schedule-empty-state h2 { color: var(--text-primary); font-size: 18px; margin: 0; }
+.schedule-btn-primary { display: flex; align-items: center; gap: 8px; background: var(--accent); color: #fff; border: none; padding: 8px 16px; border-radius: var(--radius-md); cursor: pointer; font-weight: 500; font-size: 13px; }
+.schedule-btn-primary:hover { background: var(--accent-hover); }
+.schedule-create-inline { display: flex; gap: 8px; }
+.schedule-create-inline input { padding: 6px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-input); color: var(--text-primary); outline: none; }
+.schedule-create-inline button { padding: 6px 12px; border: none; background: var(--accent); color: #fff; border-radius: var(--radius-md); cursor: pointer; }
