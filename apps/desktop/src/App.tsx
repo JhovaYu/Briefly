@@ -669,6 +669,14 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
     setCreating(false);
     setNewPoolName('');
 
+    if (user.identityType === 'cloud') {
+       IdentityManager.cloudClient?.from('user_pools').insert({
+          user_id: user.id,
+          pool_id: poolId,
+          pool_name: name
+       }).then(({error}) => { if (error) console.error("Error backing up pool:", error); });
+    }
+
     onOpenPool(poolId, name, signalingUrl);
   };
 
@@ -712,6 +720,15 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
     addPool(pool);
     setPools(getSavedPools());
     setJoinId('');
+
+    if (user.identityType === 'cloud') {
+       IdentityManager.cloudClient?.from('user_pools').upsert({
+          user_id: user.id,
+          pool_id: pool.id,
+          pool_name: pool.name
+       }, { onConflict: 'user_id, pool_id' }).then(({error}) => { if (error) console.error("Error backing up pool:", error); });
+    }
+
     onOpenPool(pool.id, pool.name, signalingUrl);
   };
 
@@ -719,6 +736,11 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
     e.stopPropagation();
     removePool(id);
     setPools(getSavedPools());
+
+    if (user.identityType === 'cloud') {
+       IdentityManager.cloudClient?.from('user_pools').delete().match({ user_id: user.id, pool_id: id })
+         .then(({error}) => { if (error) console.error("Error removing backed up pool:", error); });
+    }
   };
 
   const sorted = [...pools].sort((a, b) => b.lastOpened - a.lastOpened);
@@ -1555,6 +1577,22 @@ function App() {
       
       saveUserProfile(profile);
       setUserProfile(profile);
+
+      // Sincronizar Pools (Libretas) guardadas en la Nube hacia Local
+      const { data: poolsData } = await sb.from('user_pools').select('*').eq('user_id', uid);
+      if (poolsData && poolsData.length > 0) {
+        poolsData.forEach(p => {
+           addPool({
+             id: p.pool_id,
+             name: p.pool_name,
+             icon: 'collab', // Icono general
+             lastOpened: Date.now(),
+             createdAt: Date.now(),
+             signalingUrl: undefined // Tendrán que reconectar IP
+           });
+        });
+      }
+
       setScreen({ type: 'dashboard' });
     } catch (err) {
       console.error("Error fetching profile:", err);
