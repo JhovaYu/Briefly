@@ -7,7 +7,7 @@ import {
   MoreHorizontal, ChevronRight, ChevronDown, FolderPlus, Copy,
   Edit3, FilePlus, FolderOpen, BookOpen, X, Clipboard, GripVertical,
   ArrowLeft, Users, Clock, Zap, ListChecks, ChevronLeft, Download, QrCode,
-  Settings, Type, Sidebar
+  Settings, Type, Sidebar, Bell, HelpCircle, Archive, Folder, Activity, Edit2
 } from 'lucide-react';
 import type { Note, Notebook, TaskList } from '@tuxnotas/shared';
 import { TaskBoard } from './infrastructure/ui/components/TaskBoard';
@@ -304,6 +304,50 @@ function SettingsModal({ onClose, settings }: { onClose: () => void, settings: R
   );
 }
 
+function NotificationsModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="settings-overlay fade-in" onClick={onClose}>
+      <div className="settings-modal" onClick={e => e.stopPropagation()}>
+        <div className="settings-sidebar">
+          <h2 className="settings-title">Notificaciones</h2>
+          <button className="settings-tab active">
+            <Bell size={16} /> Recientes
+          </button>
+        </div>
+        <div className="settings-content">
+          <div className="settings-section">
+            <h3>Novedades</h3>
+            
+            <div className="settings-row" style={{ flexDirection: 'column', alignItems: 'flex-start', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
+                <div style={{ background: 'rgba(231, 76, 60, 0.2)', color: '#e74c3c', padding: '6px', borderRadius: '50%' }}>
+                  <Clock size={16} />
+                </div>
+                <strong style={{ color: 'var(--text-primary)' }}>Nueva actualización de horarios</strong>
+              </div>
+              <span className="settings-desc" style={{ marginTop: '4px' }}>Se han modificado las fechas de entrega para Matemáticas.</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '8px' }}>Hace 2 horas</span>
+            </div>
+
+            <div className="settings-row" style={{ flexDirection: 'column', alignItems: 'flex-start', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px' }}>
+               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
+                 <div style={{ background: 'var(--accent)', color: '#fff', padding: '6px', borderRadius: '50%' }}>
+                   <ListChecks size={16} />
+                 </div>
+                 <strong style={{ color: 'var(--text-primary)' }}>Se ha añadido una nueva tarea</strong>
+               </div>
+               <span className="settings-desc" style={{ marginTop: '4px' }}>Un miembro de tu grupo "Interfaces" ha agregado "Revisión de Wireframes".</span>
+               <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '8px' }}>Hace 5 horas</span>
+            </div>
+
+          </div>
+        </div>
+        <button className="settings-close" onClick={onClose}><X size={20} /></button>
+      </div>
+    </div>
+  );
+}
+
 // ════════════════════════════════════════════════════
 // 1. PROFILE SETUP SCREEN
 // ════════════════════════════════════════════════════
@@ -392,6 +436,7 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
   );
   const settings = useSettings();
   const [showSettings, setShowSettings] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -411,18 +456,16 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
 
     const name = newPoolName.trim() || 'Mi espacio';
 
-    // Generar ID único (sin IP)
     const poolId = `pool-${Math.random().toString(36).substr(2, 9)}`;
     const signalingUrl = `ws://${signalingIp}:4444`;
 
-    // Guardar el pool con su ID puro y la IP actual
     const pool: PoolInfo = {
       id: poolId,
       name,
       icon: 'workspace',
       lastOpened: Date.now(),
       createdAt: Date.now(),
-      signalingUrl // Guardamos la URL para recordar nuestra propia IP/config
+      signalingUrl
     };
 
     addPool(pool);
@@ -430,7 +473,6 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
     setCreating(false);
     setNewPoolName('');
 
-    // Al crear, somos el HOST -> usamos la IP local
     onOpenPool(poolId, name, signalingUrl);
   };
 
@@ -440,13 +482,11 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
     try {
       if (window.electronAPI) {
         await window.electronAPI.stopSignaling();
-        console.log('[Dashboard] Signaling stopped (joining existing pool)');
       }
     } catch (e) {
       console.error('Error stopping signaling:', e);
     }
 
-    // Parse id@ip
     const input = joinId.trim();
     if (!input) return;
 
@@ -455,18 +495,15 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
 
     if (input.includes('@')) {
       const parts = input.split('@');
-      poolId = parts[0]; // El ID real es solo la primera parte
+      poolId = parts[0]; 
       const ip = parts[1];
       signalingUrl = `ws://${ip}:4444`;
     }
 
-    // Buscar si ya existe este pool (para actualizar su IP/signalingUrl)
     const savedPools = getSavedPools();
     const existingIndex = savedPools.findIndex(p => p.id === poolId);
-
     const poolName = existingIndex >= 0 ? savedPools[existingIndex].name : poolId;
 
-    // Construir objeto pool (actualizando signalingUrl si es nuevo o cambió)
     const pool: PoolInfo = {
       id: poolId,
       name: poolName,
@@ -476,9 +513,7 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
       signalingUrl: signalingUrl || (existingIndex >= 0 ? savedPools[existingIndex].signalingUrl : undefined)
     };
 
-    // Esto actualiza o añade el pool
     addPool(pool);
-
     setPools(getSavedPools());
     setJoinId('');
     onOpenPool(pool.id, pool.name, signalingUrl);
@@ -490,130 +525,194 @@ function HomeDashboard({ user, onOpenPool, onLogout }: {
     setPools(getSavedPools());
   };
 
-  const formatDate = (ts: number) => {
-    const d = new Date(ts);
-    return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
-  };
-
   const sorted = [...pools].sort((a, b) => b.lastOpened - a.lastOpened);
 
   return (
-    <div className="dashboard-screen">
-      <header className="dashboard-topbar">
-        <div className="dashboard-topbar-left">
-          <img src="./logo.png" alt="Logo" style={{ width: 22, height: 22, objectFit: 'contain' }} />
-          <span style={{ fontWeight: 600, fontSize: 15 }}>{application_name}</span>
-        </div>
-        <div className="dashboard-topbar-right">
-          <div className="header-user">
-            <div className="header-user-dot" style={{ background: user.color }} />
-            <span>{user.name}</span>
+    <div className="db2-container">
+      {/* SIDEBAR */}
+      <aside className="db2-sidebar">
+        <div className="db2-brand">
+          <div className="db2-logo" style={{ background: 'transparent' }}>
+            <img src="./logo.png" alt="Briefly Logo" style={{ width: 26, height: 26, objectFit: 'contain' }} />
           </div>
-          <button className="theme-toggle-btn" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}>
-            {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
-          </button>
-          <button className="header-btn" onClick={() => setShowSettings(true)} title="Ajustes">
-            <Settings size={14} strokeWidth={1.5} />
-          </button>
-          <button className="header-btn" onClick={onLogout} title="Cambiar perfil">
-            <LogOut size={14} />
+          <div className="db2-brand-text">
+            <h2>Briefly</h2>
+            <span>Estudio Personal</span>
+          </div>
+        </div>
+
+        <div className="db2-new-btn-wrapper">
+          <button className="db2-btn-primary" onClick={() => setCreating(!creating)}>
+            <Plus size={16} /> Nueva Nota
           </button>
         </div>
-      </header>
 
-      <main className="dashboard-main">
-        {/* LEFT COLUMN — Create / Join */}
-        <aside className="dashboard-left-panel fade-in">
-          <div className="dashboard-greeting">
-            <h1>Hola, {user.name}</h1>
-            <p>Tus espacios de trabajo colaborativos</p>
+        <nav className="db2-nav">
+          <button className="db2-nav-item active"><Clock size={16} /> Reciente</button>
+          <button className="db2-nav-item"><FileText size={16} /> Notas</button>
+          <button className="db2-nav-item"><Users size={16} /> Compartido</button>
+          <button className="db2-nav-item"><Archive size={16} /> Archivo</button>
+          <button className="db2-nav-item"><Trash2 size={16} /> Papelera</button>
+        </nav>
+
+        <div className="db2-bottom-nav">
+          <button className="db2-nav-item"><HelpCircle size={16} /> Ayuda</button>
+          <button className="db2-nav-item" onClick={onLogout}><LogOut size={16} /> Cerrar sesión</button>
+        </div>
+      </aside>
+
+      {/* MAIN */}
+      <main className="db2-main">
+        {/* TOPBAR */}
+        <header className="db2-topbar">
+          <div className="db2-top-links">
+            <span className="db2-top-brand" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <img src="./logo.png" alt="Briefly" style={{ width: 18, height: 18, objectFit: 'contain' }} />
+              Briefly
+            </span>
+            <span className="db2-top-link active">Reciente</span>
+            <span className="db2-top-link">Notas</span>
+            <span className="db2-top-link">Compartido</span>
+          </div>
+          <div className="db2-top-actions">
+            <button className="db2-icon-btn" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}>
+              {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+            </button>
+            <button className="db2-icon-btn" onClick={() => setShowNotifications(true)}><Bell size={16} /></button>
+            <button className="db2-icon-btn" onClick={() => setShowSettings(true)}><Settings size={16} /></button>
+            <div className="db2-avatar" style={{ background: user.color }}>{user.name.charAt(0).toUpperCase()}</div>
+          </div>
+        </header>
+
+        {/* CONTENT */}
+        <div className="db2-content">
+          
+          <div className="db2-header">
+            <h1>Mi Espacio de Trabajo</h1>
+            <p>Administra tus grupos y últimos hallazgos.</p>
           </div>
 
-          {/* Create new pool */}
-          {!creating ? (
-            <div className="panel-action-card panel-action-card--new" onClick={() => setCreating(true)}>
-              <div className="pool-card-icon-big"><Plus size={28} /></div>
-              <span className="pool-card-new-label">Crear nuevo espacio</span>
-            </div>
-          ) : (
-            <div className="panel-action-card panel-action-card--creating">
-              <input className="login-input" style={{ width: '100%', marginBottom: 8 }}
-                autoFocus placeholder="Nombre del espacio..."
-                value={newPoolName} onChange={(e) => setNewPoolName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') setCreating(false); }} />
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button className="login-btn-primary" style={{ flex: 1, padding: '6px 8px', fontSize: 12 }} onClick={handleCreate}>Crear</button>
-                <button className="login-btn-secondary" style={{ padding: '6px 8px', fontSize: 12 }} onClick={() => setCreating(false)}>Cancelar</button>
+          <div className="db2-grid">
+            {/* LEFT COLUMN: Mis grupos */}
+            <div className="db2-col-left">
+              <div className="db2-section-header">
+                <h3><Folder size={14} fill="currentColor" /> Mis grupos</h3>
+                <span className="db2-link" onClick={() => setCreating(!creating)}>Expandir todo</span>
               </div>
-            </div>
-          )}
-
-          {/* Join pool */}
-          <div className="panel-action-card panel-action-card--join">
-            <div className="pool-card-icon-big" style={{ opacity: 0.6 }}><Users size={26} /></div>
-            <span className="pool-card-new-label" style={{ fontSize: 13, marginBottom: 8 }}>Unirse a espacio</span>
-            <div style={{ display: 'flex', gap: 6, width: '100%' }}>
-              <input className="login-input" style={{ flex: 1, fontSize: 12 }}
-                placeholder="Pool ID..." value={joinId}
-                onChange={(e) => setJoinId(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleJoin()} />
-              <button className="login-btn-secondary" style={{ padding: '6px 10px', fontSize: 12 }}
-                onClick={handleJoin} disabled={!joinId.trim()}>Unirse</button>
-            </div>
-          </div>
-        </aside>
-
-        {/* RIGHT AREA — Pools grid (scrollable horizontally) */}
-        <div className="dashboard-pools-area fade-in">
-          <div className="dashboard-grid">
-            {sorted.map((pool) => {
-              let shareCode = pool.id;
-              // Ya no necesitamos añadir el '@ip' porque nuestro backend es global (Railway)
-              // Dejamos el copy/paste simple con el poolId íntegro.
-              return (
-                <div key={pool.id} className="pool-card" onClick={() => { updatePoolLastOpened(pool.id); onOpenPool(pool.id, pool.name, pool.signalingUrl); }}>
-                  <div className="pool-card-header">
-                    <div className="pool-card-icon-big" style={{ width: 36, height: 36 }}>
-                      <FileText size={18} />
-                    </div>
-                    <button className="pool-card-delete" onClick={(e) => handleDelete(pool.id, e)} title="Eliminar">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                  <h3 className="pool-card-title">{pool.name}</h3>
-                  <div className="pool-card-meta">
-                    <Clock size={12} />
-                    <span>{formatDate(pool.lastOpened)}</span>
-                  </div>
-                  <div className="pool-card-id" style={{ marginTop: 6 }}>
-                    <span style={{ fontSize: 10, opacity: 0.5, display: 'block' }}>ID: {pool.id}</span>
-                    <div className="pool-id-copy"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigator.clipboard.writeText(shareCode);
-                        const el = e.currentTarget;
-                        const original = el.innerHTML;
-                        el.innerText = 'Copiado!';
-                        setTimeout(() => el.innerHTML = original, 1000);
-                      }}
-                      style={{ marginTop: 4, background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4, cursor: 'copy', width: 'fit-content', maxWidth: '100%' }}
-                      title="Click para copiar código de invitación">
-                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)' }}>{shareCode}</span>
-                    </div>
+              
+              {/* If creating, show inline inputs here to match current logic */}
+              {creating && (
+                <div className="db2-group-card" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                  <input className="login-input" placeholder="Nombre de nuevo grupo..." value={newPoolName} onChange={e => setNewPoolName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCreate()} style={{ marginBottom: '8px' }} />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="login-btn-primary" style={{ padding: '6px' }} onClick={handleCreate}>Crear</button>
+                    <button className="login-btn-secondary" style={{ padding: '6px' }} onClick={() => setCreating(false)}>Cancelar</button>
                   </div>
                 </div>
-              );
-            })}
-            {sorted.length === 0 && (
-              <div style={{ color: 'var(--text-tertiary)', fontSize: 13, padding: '40px 0', gridColumn: '1/-1', textAlign: 'center' }}>
-                No hay espacios aún. Crea uno desde el panel izquierdo.
+              )}
+
+              {sorted.length === 0 && !creating ? (
+                <div style={{ color: 'var(--text-tertiary)', fontSize: 13, padding: '20px' }}>No hay grupos.</div>
+              ) : (
+                sorted.map(pool => (
+                  <div key={pool.id} className="db2-group-card" onClick={() => { updatePoolLastOpened(pool.id); onOpenPool(pool.id, pool.name, pool.signalingUrl); }}>
+                    <div className="db2-group-icon">
+                      <Folder size={16} fill="currentColor" />
+                    </div>
+                    <span className="db2-group-title">{pool.name}</span>
+                    <span className="db2-badge">8 NOTAS</span>
+                    <button className="pool-card-delete" onClick={(e) => handleDelete(pool.id, e)} title="Eliminar" style={{ marginLeft: 'auto', background: 'transparent' }}>
+                      <Trash2 size={14} color="var(--text-tertiary)" />
+                    </button>
+                  </div>
+                ))
+              )}
+
+               <div className="db2-section-header" style={{ marginTop: '24px' }}>
+                <span className="db2-link" style={{ marginLeft: '10px' }}>Unirse a grupo con código...</span>
               </div>
-            )}
+               <div className="db2-group-card" style={{ cursor: 'default' }}>
+                  <input className="login-input" placeholder="ID del grupo..." value={joinId} onChange={e => setJoinId(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleJoin()} style={{ flex: 1, marginRight: '8px', padding: '6px', fontSize: '13px' }}/>
+                  <button className="login-btn-secondary" style={{ padding: '6px 10px' }} onClick={handleJoin}>Unirse</button>
+               </div>
+            </div>
+
+            {/* RIGHT COLUMN: Horarios & Notas recientes */}
+            <div className="db2-col-right">
+              
+              <div className="db2-section-header">
+                <h3>Horarios</h3>
+              </div>
+              <div className="db2-horarios-grid">
+                {/* Mocked Cards reproducing design */}
+                <div className="db2-horario-card">
+                  <div className="db2-icon-badge pink"><Activity size={12} /></div>
+                  <h4>Matemáticas</h4>
+                  <p>Principios fundamentales de UX para interfaces móviles de alta fidelidad...</p>
+                  <div className="db2-time"><Clock size={12} /> EN 1:34 HORAS</div>
+                </div>
+                <div className="db2-horario-card">
+                  <div className="db2-icon-badge blue"><Activity size={12} /></div>
+                  <h4>Interfaces Humano-Computador...</h4>
+                  <p>Normalización de bases de datos relacionales y optimización de queries...</p>
+                  <div className="db2-time"><Clock size={12} /> EN 21 MINUTOS</div>
+                </div>
+                <div className="db2-horario-card">
+                   <div className="db2-icon-badge blue"><Activity size={12} /></div>
+                   <h4>Sistemas Distribuidos</h4>
+                   <p>Implementación de P2P y arquitecturas de sincronización local...</p>
+                   <div className="db2-time"><Clock size={12} /> MAÑANA</div>
+                </div>
+                 <div className="db2-horario-card">
+                  <div className="db2-icon-badge blue"><Activity size={12} /></div>
+                  <h4>Interfaces Humano-Computador...</h4>
+                  <p>Normalización de bases de datos relacionales y optimización de queries...</p>
+                  <div className="db2-time"><Clock size={12} /> EN 21 MINUTOS</div>
+                </div>
+              </div>
+
+              <div className="db2-section-header" style={{ marginTop: '30px' }}>
+                <h3><Clock size={14} /> Notas recientes</h3>
+              </div>
+              
+              <div className="db2-recent-list">
+                <div className="db2-recent-row">
+                  <FileText size={16} />
+                  <div className="db2-recent-info">
+                    <strong>Briefing Cliente - Web 3.0</strong>
+                    <span>Modificado hace 15 minutos</span>
+                  </div>
+                </div>
+                <div className="db2-recent-row">
+                  <FileText size={16} />
+                  <div className="db2-recent-info">
+                    <strong>Componentes de Diseño Atómico</strong>
+                    <span>Modificado hace 1 hora</span>
+                  </div>
+                </div>
+                <div className="db2-recent-row">
+                  <FileText size={16} />
+                  <div className="db2-recent-info">
+                    <strong>Notas Reunión QA</strong>
+                    <span>Modificado hace 1 día</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
+        
+        {/* BOTTOM FLOATING BUTTONS */}
+        <div className="db2-floating-actions">
+           <button className="db2-float-btn secondary"><FolderPlus size={16}/> NUEVA CARPETA</button>
+           <button className="db2-float-btn primary" onClick={() => setCreating(true)}><Edit2 size={16}/> NUEVA NOTA</button>
+        </div>
+
       </main>
-      
+
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} settings={settings} />}
+      {showNotifications && <NotificationsModal onClose={() => setShowNotifications(false)} />}
     </div>
   );
 }
