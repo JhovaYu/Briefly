@@ -1,0 +1,75 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Next.js Frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000,
+      "cwd": "briefly/frontend"
+    },
+    {
+      "name": "Desktop App (Vite)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173,
+      "cwd": "apps/desktop"
+    },
+    {
+      "name": "Expo Mobile",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"],
+      "port": 19000,
+      "cwd": "apps/mobile"
+    },
+    {
+      "name": "Auth Service",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"],
+      "port": 8001,
+      "cwd": "briefly/auth_service"
+    },
+    {
+      "name": "Note Service",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"],
+      "port": 8002,
+      "cwd": "briefly/note_service"
+    },
+    {
+      "name": "Task Service",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8003", "--reload"],
+      "port": 8003,
+      "cwd": "briefly/task_service"
+    },
+    {
+      "name": "Planner Service",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8004", "--reload"],
+      "port": 8004,
+      "cwd": "briefly/planner_service"
+    },
+    {
+      "name": "Kanban Service",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8005", "--reload"],
+      "port": 8005,
+      "cwd": "briefly/kanban_service"
+    },
+    {
+      "name": "Collaboration Service",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8006", "--reload"],
+      "port": 8006,
+      "cwd": "briefly/collaboration_service"
+    },
+    {
+      "name": "Y-WebRTC Signaling Server",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/y-webrtc/bin/server.js"],
+      "port": 4444,
+      "cwd": "apps/signaling"
+    }
+  ]
+}
