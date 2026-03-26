@@ -199,6 +199,7 @@ body {
 body.is-resizing-sidebar * {
   user-select: none !important;
 }
+
 body.is-resizing-sidebar .sidebar,
 body.is-resizing-sidebar .sidebar-collapse-btn {
   transition: none !important;
@@ -1014,31 +1015,105 @@ ul[data-type="taskList"] li>div {
    ============================================================ */
 
 .login-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
+  background: #0a0a0a;
+  font-family: var(--font-ui);
+  z-index: 99999;
+}
+
+.login-left-panel {
+  flex: 1 1 50%;
+  background: linear-gradient(135deg, #2a2046 0%, #6872c6 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 80px 10%;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+@media (max-width: 800px) {
+  .login-left-panel {
+    display: none;
+  }
+}
+
+.login-left-panel h1 {
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.02em;
+}
+
+.login-left-panel h1 span {
+  color: #aeb4ff;
+  display: block;
+}
+
+.login-left-panel p {
+  font-size: 16px;
+  max-width: 380px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 24px;
+}
+
+.login-left-logo {
+  margin-top: 60px;
+  /* 
+   * ======= ZONA DE MODIFICACIÓN DE TAMAÑO (LOGO) =======
+   * Para hacer que el logo sea más grande, aumenta este valor de width. 
+   * Ejemplo: cambiar de 140px a 240px o 300px.
+   */
+  width: 280px;
+  opacity: 0.9;
+  object-fit: contain;
+  /* Al crecer, lo hará siempre empujando desde la esquina superior-izquierda */
+  transform-origin: top left;
+  transition: width 0.3s ease-in-out;
+}
+
+.login-right-panel {
+  flex: 1 1 50%;
+  background: #0a0a0a;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
-  background: var(--bg-secondary);
-  padding: 24px;
+  padding: 40px;
+  color: #fff;
+  overflow-y: auto;
+  /* Solo por si es una laptop en horizontal muy pequeña */
 }
 
 .login-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: var(--shadow-lg);
-  padding: 48px 40px;
-  max-width: 420px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
   width: 100%;
-  text-align: center;
+  max-width: 380px;
+  text-align: left;
+  padding: 0;
 }
 
-.login-logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 8px;
+.login-card h2 {
+  font-size: 28px;
+  color: #fff;
+  margin: 0 0 8px 0;
+}
+
+.login-subtitle {
+  color: #888;
+  margin-bottom: 24px;
+  font-size: 14px;
 }
 
 .login-logo svg {
@@ -1116,14 +1191,42 @@ ul[data-type="taskList"] li>div {
   gap: 8px;
 }
 
+.auth-google-btn {
+  background: transparent;
+  border: 1px solid #333;
+  color: #e0e0e0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: var(--font-ui);
+  transition: all 0.2s;
+}
+
+.auth-google-btn:hover {
+  background: #111;
+  border-color: #555;
+}
+
+.auth-input-label {
+  display: block;
+  font-size: 12px;
+  color: #bbb;
+  margin-bottom: 6px;
+  margin-top: 16px;
+}
+
 .login-input {
-  flex: 1;
-  min-width: 0;
-  padding: 9px 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-input);
-  background: var(--bg-input);
-  color: var(--text-primary);
+  background: #111;
+  border: 1px solid #222;
+  color: #fff;
+  padding: 12px 14px;
+  border-radius: 8px;
   font-size: 13px;
   font-family: var(--font-ui);
   outline: none;
@@ -1131,26 +1234,66 @@ ul[data-type="taskList"] li>div {
 }
 
 .login-input::placeholder {
-  color: var(--text-placeholder);
+  color: #555;
 }
 
 .login-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-light);
+  border-color: #7b5cff;
 }
 
-.login-btn-secondary {
-  padding: 9px 16px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-input);
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 500;
+.login-btn-primary.glow {
+  background: linear-gradient(90deg, #816AFA, #6872c6);
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  width: 100%;
+  padding: 14px;
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(129, 106, 250, 0.4);
+  font-size: 14px;
   font-family: var(--font-ui);
   cursor: pointer;
-  transition: all var(--transition-fast);
-  white-space: nowrap;
+  margin-top: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.login-btn-primary.glow:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.auth-switch-link {
+  text-align: center;
+  font-size: 13px;
+  color: #888;
+  margin-top: 32px;
+}
+
+.auth-switch-link a {
+  color: #aeb4ff;
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 500;
+  margin-top: 4px;
+  display: block;
+}
+
+.auth-switch-link a:hover {
+  text-decoration: underline;
+}
+
+.auth-footer-terms {
+  text-align: center;
+  color: #555;
+  font-size: 11px;
+  margin-top: 24px;
+  max-width: 280px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .login-btn-secondary:hover {
@@ -1530,7 +1673,8 @@ ul[data-type="taskList"] li>div {
   flex: 1;
   display: flex;
   overflow: hidden;
-  height: calc(100vh - 49px); /* topbar height */
+  height: calc(100vh - 49px);
+  /* topbar height */
 }
 
 /* ─── Left panel (Create / Join) ─── */
@@ -1757,6 +1901,7 @@ ul[data-type="taskList"] li>div {
   border-radius: var(--radius-sm);
   padding: 6px;
 }
+
 .settings-close:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
@@ -1774,7 +1919,9 @@ ul[data-type="taskList"] li>div {
   position: relative;
   transition: background 0.15s;
 }
-.sidebar-resizer:hover, .sidebar-resizer:active {
+
+.sidebar-resizer:hover,
+.sidebar-resizer:active {
   background: var(--divider);
 }
 
@@ -1796,14 +1943,17 @@ ul[data-type="taskList"] li>div {
   white-space: nowrap;
   line-height: 1.6;
 }
+
 .sidebar-resizer:hover .resizer-tooltip {
   opacity: 1;
   transform: translateY(-50%) translateX(6px);
 }
+
 .resizer-tooltip strong {
   color: var(--text-primary);
   font-weight: 600;
 }
+
 body.is-resizing-sidebar .resizer-tooltip {
   opacity: 0 !important;
   transition: none !important;
@@ -1830,10 +1980,12 @@ body.is-resizing-sidebar * {
   display: flex;
   align-items: center;
 }
+
 .sidebar-header-toggle:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
+
 .pool-card {
   background: var(--bg-sidebar);
   border: 1px solid var(--border);
@@ -1852,11 +2004,14 @@ body.is-resizing-sidebar * {
 
 .pool-card:hover {
   border-color: var(--accent);
-  transform: scale(1.15); /* Crecimiento proporcional hacia abajo a la derecha */
+  transform: scale(1.15);
+  /* Crecimiento proporcional hacia abajo a la derecha */
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   z-index: 50;
-  max-height: 2000px; /* Rompe el límite suavemente en hover para mostrar todo */
-  transition: all 200ms ease 0.4s; /* Requiere mínimo 0.4s de hover para crecer */
+  max-height: 2000px;
+  /* Rompe el límite suavemente en hover para mostrar todo */
+  transition: all 200ms ease 0.4s;
+  /* Requiere mínimo 0.4s de hover para crecer */
 }
 
 .pool-card:hover .pool-card-title {
@@ -1961,9 +2116,11 @@ body.is-resizing-sidebar * {
   line-height: 1.3;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 6; /* Trunca con puntos suspensivos tras 6 líneas */
+  -webkit-line-clamp: 6;
+  /* Trunca con puntos suspensivos tras 6 líneas */
   line-clamp: 6;
-  max-height: 7.8em; /* 6 líneas * 1.3 de line-height = 7.8em de alto exactamente */
+  max-height: 7.8em;
+  /* 6 líneas * 1.3 de line-height = 7.8em de alto exactamente */
   overflow: hidden;
   word-break: break-word;
   transition: all 200ms ease;
@@ -2200,7 +2357,8 @@ body.is-resizing-sidebar * {
   transition: color 0.2s;
 }
 
-.db2-top-link:hover, .db2-top-link.active {
+.db2-top-link:hover,
+.db2-top-link.active {
   color: var(--text-primary);
 }
 

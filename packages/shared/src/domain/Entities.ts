@@ -64,10 +64,14 @@ export interface Peer {
 }
 
 export interface UserProfile {
-    id: string;
+    id: string; // The generated user ID or UUID from Supabase
     name: string;
     color: string;
     createdAt: number;
+    // Identity fields:
+    identityType?: 'seed' | 'cloud' | 'local';
+    seedPhrase?: string; // Solo si es Seed Identity
+    syncPoolId?: string; // El room invisible donde se sincronizan los pools
 }
 
 export interface PoolInfo {
