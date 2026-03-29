@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
-  Clock, FileText, Users, Archive, Trash2, HelpCircle, LogOut,
-  Sun, Moon, Bell, Settings, Folder, Activity, Plus, Edit2, FolderPlus
+  Clock, FileText, Archive, Trash2, LogOut,
+  Sun, Moon, Bell, Settings, Folder, Activity, Plus, Edit2, FolderPlus,
+  History, Calendar, CheckSquare
 } from 'lucide-react';
 import {
   type UserProfile, type PoolInfo,
@@ -83,7 +84,7 @@ export function HomeDashboard({ user, onOpenPool, onLogout }: {
 
     if (input.includes('@')) {
       const parts = input.split('@');
-      poolId = parts[0]; 
+      poolId = parts[0];
       const ip = parts[1];
       signalingUrl = `ws://${ip}:4444`;
     }
@@ -136,45 +137,42 @@ export function HomeDashboard({ user, onOpenPool, onLogout }: {
         </div>
 
         <nav className="db2-nav">
-          <button className="db2-nav-item active"><Clock size={16} /> Reciente</button>
+          <button className="db2-nav-item active"><History size={16} /> Dashboard</button>
           <button className="db2-nav-item"><FileText size={16} /> Notas</button>
-          <button className="db2-nav-item"><Users size={16} /> Compartido</button>
-          <button className="db2-nav-item"><Archive size={16} /> Archivo</button>
+          <button className="db2-nav-item"><Calendar size={16} /> Calendario</button>
+          <button className="db2-nav-item"><CheckSquare size={16} /> Tareas</button>
+          <button className="db2-nav-item"><Clock size={16} /> Horario</button>
+          <button className="db2-nav-item"><Archive size={16} /> Tableros</button>
           <button className="db2-nav-item"><Trash2 size={16} /> Papelera</button>
         </nav>
 
         <div className="db2-bottom-nav">
-          <button className="db2-nav-item"><HelpCircle size={16} /> Ayuda</button>
+          <div className="db2-user-profile">
+            <div className="db2-user-avatar2" style={{ background: user.color }}>
+              {user.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="db2-user-name2" title={user.name}>
+              {user.name}
+            </div>
+            <button className="db2-user-icon-btn" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Cambiar tema">
+              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
+            <button className="db2-user-icon-btn" onClick={() => setShowNotifications(true)} title="Notificaciones">
+              <Bell size={18} />
+            </button>
+          </div>
+          <div className="db2-bottom-divider"></div>
+
+          <button className="db2-nav-item" onClick={() => setShowSettings(true)}><Settings size={16} /> Ajustes</button>
           <button className="db2-nav-item" onClick={onLogout}><LogOut size={16} /> Cerrar sesión</button>
         </div>
       </aside>
 
       {/* MAIN */}
       <main className="db2-main">
-        {/* TOPBAR */}
-        <header className="db2-topbar">
-          <div className="db2-top-links">
-            <span className="db2-top-brand" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <img src="./logo.png" alt="Briefly" style={{ width: 18, height: 18, objectFit: 'contain' }} />
-              Briefly
-            </span>
-            <span className="db2-top-link active">Reciente</span>
-            <span className="db2-top-link">Notas</span>
-            <span className="db2-top-link">Compartido</span>
-          </div>
-          <div className="db2-top-actions">
-            <button className="db2-icon-btn" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}>
-              {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
-            </button>
-            <button className="db2-icon-btn" onClick={() => setShowNotifications(true)}><Bell size={16} /></button>
-            <button className="db2-icon-btn" onClick={() => setShowSettings(true)}><Settings size={16} /></button>
-            <div className="db2-avatar" style={{ background: user.color }}>{user.name.charAt(0).toUpperCase()}</div>
-          </div>
-        </header>
-
         {/* CONTENT */}
         <div className="db2-content">
-          
+
           <div className="db2-header">
             <h1>Mi Espacio de Trabajo</h1>
             <p>Administra tus grupos y últimos hallazgos.</p>
@@ -187,7 +185,7 @@ export function HomeDashboard({ user, onOpenPool, onLogout }: {
                 <h3><Folder size={14} fill="currentColor" /> Mis grupos</h3>
                 <span className="db2-link" onClick={() => setCreating(!creating)}>Expandir todo</span>
               </div>
-              
+
               {/* If creating, show inline inputs here to match current logic */}
               {creating && (
                 <div className="db2-group-card" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
@@ -216,18 +214,18 @@ export function HomeDashboard({ user, onOpenPool, onLogout }: {
                 ))
               )}
 
-               <div className="db2-section-header" style={{ marginTop: '24px' }}>
+              <div className="db2-section-header" style={{ marginTop: '24px' }}>
                 <span className="db2-link" style={{ marginLeft: '10px' }}>Unirse a grupo con código...</span>
               </div>
-               <div className="db2-group-card" style={{ cursor: 'default' }}>
-                  <input className="login-input" placeholder="ID del grupo..." value={joinId} onChange={e => setJoinId(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleJoin()} style={{ flex: 1, marginRight: '8px', padding: '6px', fontSize: '13px' }}/>
-                  <button className="login-btn-secondary" style={{ padding: '6px 10px' }} onClick={handleJoin}>Unirse</button>
-               </div>
+              <div className="db2-group-card" style={{ cursor: 'default' }}>
+                <input className="login-input" placeholder="ID del grupo..." value={joinId} onChange={e => setJoinId(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleJoin()} style={{ flex: 1, marginRight: '8px', padding: '6px', fontSize: '13px' }} />
+                <button className="login-btn-secondary" style={{ padding: '6px 10px' }} onClick={handleJoin}>Unirse</button>
+              </div>
             </div>
 
             {/* RIGHT COLUMN: Horarios & Notas recientes */}
             <div className="db2-col-right">
-              
+
               <div className="db2-section-header">
                 <h3>Horarios</h3>
               </div>
@@ -246,12 +244,12 @@ export function HomeDashboard({ user, onOpenPool, onLogout }: {
                   <div className="db2-time"><Clock size={12} /> EN 21 MINUTOS</div>
                 </div>
                 <div className="db2-horario-card">
-                   <div className="db2-icon-badge blue"><Activity size={12} /></div>
-                   <h4>Sistemas Distribuidos</h4>
-                   <p>Implementación de P2P y arquitecturas de sincronización local...</p>
-                   <div className="db2-time"><Clock size={12} /> MAÑANA</div>
+                  <div className="db2-icon-badge blue"><Activity size={12} /></div>
+                  <h4>Sistemas Distribuidos</h4>
+                  <p>Implementación de P2P y arquitecturas de sincronización local...</p>
+                  <div className="db2-time"><Clock size={12} /> MAÑANA</div>
                 </div>
-                 <div className="db2-horario-card">
+                <div className="db2-horario-card">
                   <div className="db2-icon-badge blue"><Activity size={12} /></div>
                   <h4>Interfaces Humano-Computador...</h4>
                   <p>Normalización de bases de datos relacionales y optimización de queries...</p>
@@ -262,7 +260,7 @@ export function HomeDashboard({ user, onOpenPool, onLogout }: {
               <div className="db2-section-header" style={{ marginTop: '30px' }}>
                 <h3><Clock size={14} /> Notas recientes</h3>
               </div>
-              
+
               <div className="db2-recent-list">
                 <div className="db2-recent-row">
                   <FileText size={16} />
@@ -290,11 +288,11 @@ export function HomeDashboard({ user, onOpenPool, onLogout }: {
             </div>
           </div>
         </div>
-        
+
         {/* BOTTOM FLOATING BUTTONS */}
         <div className="db2-floating-actions">
-           <button className="db2-float-btn secondary"><FolderPlus size={16}/> NUEVA CARPETA</button>
-           <button className="db2-float-btn primary" onClick={() => setCreating(true)}><Edit2 size={16}/> NUEVA NOTA</button>
+          <button className="db2-float-btn secondary"><FolderPlus size={16} /> NUEVA CARPETA</button>
+          <button className="db2-float-btn primary" onClick={() => setCreating(true)}><Edit2 size={16} /> NUEVA NOTA</button>
         </div>
 
       </main>
