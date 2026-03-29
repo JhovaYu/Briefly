@@ -2363,3 +2363,40 @@ body.is-resizing-sidebar * {
 .tskf-input-lg { width: 100%; font-size: 24px; border: none; background: transparent; color: var(--text-primary); outline: none; font-weight: 600; padding: 8px 16px; }
 .tskf-divider { height: 1px; background: var(--border-light); margin: 0 16px; }
 .tskf-subtask-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--border-light); color: var(--text-primary); }
+
+/* ========================================= */
+/*  Pomodoro Timer (.pom-*)                  */
+/* ========================================= */
+.pom-root { display: flex; flex-direction: column; gap: 20px; max-width: 480px; margin: 0 auto; padding: 24px; flex: 1; overflow-y: auto; }
+.pom-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: block; }
+.pom-subject-select { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 14px 16px; display: flex; flex-direction: column; }
+.pom-select-wrap { display: flex; align-items: center; gap: 10px; }
+.pom-select { flex: 1; background: transparent; border: none; color: var(--text-primary); font-size: 15px; outline: none; cursor: pointer; }
+.pom-color-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.pom-circle-wrap { display: flex; justify-content: center; padding: 8px 0; }
+.pom-svg { width: 220px; height: 220px; }
+.pom-time-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.pom-time { font-size: 48px; font-weight: 700; color: var(--text-primary); line-height: 1; font-variant-numeric: tabular-nums; }
+.pom-mode-label { font-size: 14px; color: var(--text-secondary); text-align: center; }
+.pom-sessions-dots { display: flex; gap: 8px; justify-content: center; }
+.pom-dot { width: 10px; height: 10px; border-radius: 50%; transition: background 0.3s; }
+.pom-dot--empty { background: var(--border-color); }
+.pom-dot--done { background: var(--accent); }
+.pom-controls { display: flex; gap: 12px; justify-content: center; align-items: center; }
+.pom-btn-main { display: flex; align-items: center; gap: 8px; padding: 12px 32px; border-radius: 24px; background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; border: none; cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
+.pom-btn-main:hover { opacity: 0.88; transform: scale(1.02); }
+.pom-btn-skip { display: flex; align-items: center; justify-content: center; padding: 12px; border-radius: 24px; background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-secondary); cursor: pointer; transition: background 0.15s; }
+.pom-btn-skip:hover { background: var(--bg-hover); color: var(--text-primary); }
+.pom-settings-toggle { display: flex; align-items: center; gap: 6px; background: transparent; border: none; color: var(--text-secondary); font-size: 13px; cursor: pointer; padding: 4px 0; align-self: center; }
+.pom-settings-toggle:hover { color: var(--text-primary); }
+.pom-settings-panel { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.pom-setting-row { display: flex; flex-direction: column; gap: 6px; }
+.pom-setting-inputs { display: flex; align-items: center; gap: 10px; }
+.pom-slider { flex: 1; height: 4px; cursor: pointer; }
+.pom-number-input { width: 56px; padding: 4px 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-input, var(--bg-card)); color: var(--text-primary); font-size: 14px; text-align: center; outline: none; }
+.pom-number-input:focus { border-color: var(--accent); }
+.pom-stats { padding: 16px; background: var(--bg-secondary); border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: 10px; }
+.pom-stats-summary { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+.pom-stats-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; border-top: 1px solid var(--border-light, var(--border-color)); }
+.pom-stats-subject { flex: 1; color: var(--text-primary); }
+.pom-stats-mins { color: var(--text-secondary); font-variant-numeric: tabular-nums; }

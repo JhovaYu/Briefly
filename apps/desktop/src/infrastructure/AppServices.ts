@@ -13,7 +13,7 @@ let noteCounter = 0;
  */
 const instanceCache = new Map<string, { svc: AppServices; refCount: number }>();
 
-import { TaskService, KanbanService, ScheduleService } from '@tuxnotas/shared';
+import { TaskService, KanbanService, ScheduleService, PomodoroService } from '@tuxnotas/shared';
 
 export class AppServices implements CollaborationService {
     public doc: Y.Doc;
@@ -22,6 +22,7 @@ export class AppServices implements CollaborationService {
     public tasks: TaskService;
     public kanban: KanbanService;
     public schedule: ScheduleService;
+    public pomodoro: PomodoroService;
 
     constructor() {
         this.doc = new Y.Doc();
@@ -30,6 +31,7 @@ export class AppServices implements CollaborationService {
         this.tasks = new TaskService(this.doc);
         this.kanban = new KanbanService(this.doc);
         this.schedule = new ScheduleService(this.doc);
+        this.pomodoro = new PomodoroService(this.doc);
     }
 
     async initialize(poolId: string = 'fluent-default-pool', signalingUrl?: string): Promise<void> {

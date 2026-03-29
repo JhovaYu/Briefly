@@ -7,12 +7,13 @@ import {
   MoreHorizontal, ChevronRight, ChevronDown, FolderPlus, Copy,
   Edit3, FilePlus, FolderOpen, BookOpen, X, Clipboard, GripVertical,
   ArrowLeft, Users, Clock, Zap, ListChecks, ChevronLeft, Download, QrCode,
-  Settings, Type, Sidebar, LayoutTemplate, CalendarDays
+  Settings, Type, Sidebar, LayoutTemplate, CalendarDays, Timer
 } from 'lucide-react';
 import type { Note, Notebook, TaskList } from '@tuxnotas/shared';
 import { TaskBoard } from './infrastructure/ui/components/TaskBoard';
 import { KanbanBoard } from './infrastructure/ui/components/KanbanBoard';
 import { ScheduleBoard } from './infrastructure/ui/components/ScheduleBoard';
+import { PomodoroTimer } from './infrastructure/ui/components/PomodoroTimer';
 import {
   getUserProfile, saveUserProfile, getSavedPools, addPool, removePool,
   updatePoolLastOpened,
@@ -634,6 +635,7 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
   const [activeNotebookId, setActiveNotebookId] = useState<string | null>(null);
   const [showKanban, setShowKanban] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
+  const [showPomodoro, setShowPomodoro] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; noteId?: string; notebookId?: string } | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -1024,17 +1026,24 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
           <div className="sidebar-section-label">Vistas</div>
           <div 
             className={`sidebar-note-item ${showKanban ? 'active' : ''}`}
-            onClick={() => { setShowKanban(true); setShowSchedule(false); setActiveNoteId(null); setActiveTaskListId(null); }}
+            onClick={() => { setShowKanban(true); setShowSchedule(false); setShowPomodoro(false); setActiveNoteId(null); setActiveTaskListId(null); }}
             style={{ paddingLeft: 8 }}>
             <LayoutTemplate className="note-icon" size={15} />
             <span className="note-title">Tablero Kanban</span>
           </div>
-          <div 
+          <div
             className={`sidebar-note-item ${showSchedule ? 'active' : ''}`}
-            onClick={() => { setShowSchedule(true); setShowKanban(false); setActiveNoteId(null); setActiveTaskListId(null); }}
+            onClick={() => { setShowSchedule(true); setShowKanban(false); setShowPomodoro(false); setActiveNoteId(null); setActiveTaskListId(null); }}
             style={{ paddingLeft: 8 }}>
             <CalendarDays className="note-icon" size={15} />
             <span className="note-title">Horario Escolar</span>
+          </div>
+          <div
+            className={`sidebar-note-item ${showPomodoro ? 'active' : ''}`}
+            onClick={() => { setShowPomodoro(true); setShowSchedule(false); setShowKanban(false); setActiveNoteId(null); setActiveTaskListId(null); }}
+            style={{ paddingLeft: 8 }}>
+            <Timer className="note-icon" size={15} />
+            <span className="note-title">Pomodoro</span>
           </div>
 
           {/* TASK LISTS SECTION */}
@@ -1202,7 +1211,15 @@ function PoolWorkspace({ poolId, poolName, user, onBack, signalingUrl }: {
           </div>
         </div>
 
-        {showSchedule && services ? (
+        {showPomodoro && services ? (
+          <PomodoroTimer
+            poolId={poolId}
+            service={services.pomodoro}
+            scheduleEvents={services.schedule.getEvents(
+              services.schedule.getBoards(poolId)[0]?.id ?? ''
+            )}
+          />
+        ) : showSchedule && services ? (
           <ScheduleBoard
             poolId={poolId}
             service={services.schedule}

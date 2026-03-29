@@ -110,6 +110,24 @@ export interface PoolInfo {
     signalingUrl?: string;
 }
 
+// ─── Pomodoro Entities ───
+
+export interface PomodoroSession {
+    id: string
+    poolId: string
+    linkedEventId?: string
+    linkedEventTitle?: string
+    linkedEventColor?: string
+    workMinutes: number
+    breakMinutes: number
+    longBreakMinutes: number
+    sessionsBeforeLongBreak: number
+    completedSessions: number
+    totalMinutesStudied: number
+    createdAt: number
+    updatedAt: number
+}
+
 // ─── Kanban Entities ───
 
 export interface KanbanBoard {
