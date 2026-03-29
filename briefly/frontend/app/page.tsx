@@ -9,7 +9,7 @@ export default function Home() {
   useEffect(() => {
     const token = localStorage.getItem('briefly_token')
     if (token) {
-      router.push('/notas')
+      router.push('/dashboard')
     } else {
       router.push('/login')
     }
