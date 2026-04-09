@@ -1,31 +1,17 @@
 /// <reference path="./electron.d.ts" />
-import { useState, useEffect, useRef } from 'react';
-import { Editor } from './infrastructure/ui/components/Editor';
-import { AppServices } from './infrastructure/AppServices';
-import {
-  FileText, Plus, Search, Sun, Moon, LogOut, Trash2,
-  MoreHorizontal, ChevronRight, ChevronDown, FolderPlus, Copy,
-  Edit3, FilePlus, FolderOpen, BookOpen, X, Clipboard, GripVertical,
-  ArrowLeft, Users, Clock, Zap, ListChecks, ChevronLeft, Download, QrCode,
-  Settings, Type, Sidebar, Bell, HelpCircle, Archive, Folder, Activity, Edit2
-} from 'lucide-react';
-import type { Note, Notebook, TaskList } from '@tuxnotas/shared';
-import { TaskBoard } from './infrastructure/ui/components/TaskBoard';
-import { SeedPhrase, IdentityManager } from '@tuxnotas/shared';
+import { useState, useEffect } from 'react';
+import { IdentityManager } from '@tuxnotas/shared';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 if (SUPABASE_URL && SUPABASE_KEY) {
   IdentityManager.initializeCloud(SUPABASE_URL, SUPABASE_KEY);
 }
-import {
-  getUserProfile, saveUserProfile, getSavedPools, addPool, removePool,
-  updatePoolLastOpened,
-  type UserProfile, type PoolInfo,
-} from './core/domain/UserProfile';
-import { application_name } from './constants';
-import QRCodeLib from 'qrcode';
-import JSZip from 'jszip';
+
+import { getUserProfile, saveUserProfile, type UserProfile } from './core/domain/UserProfile';
+import { ProfileSetup } from './ui/screens/ProfileSetup';
+import { HomeDashboard } from './ui/screens/HomeDashboard';
+import { PoolWorkspace } from './ui/screens/PoolWorkspace';
 import './infrastructure/ui/styles/index.css';
 
 // ─── Shared Components ───
