@@ -10,6 +10,7 @@ import {
 } from '../../core/domain/UserProfile';
 import { useSettings, SettingsModal } from '../components/SettingsModal';
 import { NotificationsModal } from '../components/NotificationsModal';
+import { ScheduleScreen } from './ScheduleScreen';
 
 export function HomeDashboard({ user, onOpenPool, onLogout }: {
   user: UserProfile;
@@ -26,6 +27,7 @@ export function HomeDashboard({ user, onOpenPool, onLogout }: {
   const settings = useSettings();
   const [showSettings, setShowSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -116,6 +118,10 @@ export function HomeDashboard({ user, onOpenPool, onLogout }: {
 
   const sorted = [...pools].sort((a, b) => b.lastOpened - a.lastOpened);
 
+  if (showSchedule) {
+    return <ScheduleScreen user={user} onBack={() => setShowSchedule(false)} />;
+  }
+
   return (
     <div className="db2-container">
       {/* SIDEBAR */}
@@ -141,7 +147,7 @@ export function HomeDashboard({ user, onOpenPool, onLogout }: {
           <button className="db2-nav-item"><FileText size={16} /> Notas</button>
           <button className="db2-nav-item"><Calendar size={16} /> Calendario</button>
           <button className="db2-nav-item"><CheckSquare size={16} /> Tareas</button>
-          <button className="db2-nav-item"><Clock size={16} /> Horario</button>
+          <button className="db2-nav-item" onClick={() => setShowSchedule(true)}><Clock size={16} /> Horario</button>
           <button className="db2-nav-item"><Archive size={16} /> Tableros</button>
           <button className="db2-nav-item"><Trash2 size={16} /> Papelera</button>
         </nav>
