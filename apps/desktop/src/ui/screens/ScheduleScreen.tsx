@@ -61,9 +61,10 @@ const initialConfig: ScheduleConfig = {
 interface ScheduleScreenProps {
   user: UserProfile;
   onBack: () => void;
+  onNavigate: (screen: string) => void;
 }
 
-export function ScheduleScreen({ user, onBack }: ScheduleScreenProps) {
+export function ScheduleScreen({ user, onBack, onNavigate }: ScheduleScreenProps) {
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
     (localStorage.getItem('fluent-theme') as 'light' | 'dark') || 'dark'
   );
@@ -371,13 +372,13 @@ export function ScheduleScreen({ user, onBack }: ScheduleScreenProps) {
         </div>
 
         <nav className="db2-nav">
-          <button className="db2-nav-item" onClick={onBack}><History size={16} /> Dashboard</button>
-          <button className="db2-nav-item"><FileText size={16} /> Notas</button>
-          <button className="db2-nav-item"><Calendar size={16} /> Calendario</button>
-          <button className="db2-nav-item"><CheckSquare size={16} /> Tareas</button>
-          <button className="db2-nav-item active"><Clock size={16} /> Horario</button>
-          <button className="db2-nav-item"><Archive size={16} /> Tableros</button>
-          <button className="db2-nav-item"><Trash2 size={16} /> Papelera</button>
+          <button className="db2-nav-item" onClick={() => onNavigate('dashboard')}><History size={16} /> Dashboard</button>
+          <button className="db2-nav-item" onClick={() => onNavigate('notes')}><FileText size={16} /> Notas</button>
+          <button className="db2-nav-item" onClick={() => onNavigate('calendar')}><Calendar size={16} /> Calendario</button>
+          <button className="db2-nav-item" onClick={() => onNavigate('tasks')}><CheckSquare size={16} /> Tareas</button>
+          <button className="db2-nav-item active" onClick={() => onNavigate('schedule')}><Clock size={16} /> Horario</button>
+          <button className="db2-nav-item" onClick={() => onNavigate('boards')}><Archive size={16} /> Tableros</button>
+          <button className="db2-nav-item" onClick={() => onNavigate('trash')}><Trash2 size={16} /> Papelera</button>
         </nav>
 
         <div className="db2-bottom-nav">

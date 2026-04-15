@@ -12,13 +12,23 @@ import { addPool, getUserProfile, saveUserProfile, type UserProfile } from './co
 import { ProfileSetup } from './ui/screens/ProfileSetup';
 import { HomeDashboard } from './ui/screens/HomeDashboard';
 import { PoolWorkspace } from './ui/screens/PoolWorkspace';
-
+import { CalendarScreen } from './ui/screens/CalendarScreen';
+import { ScheduleScreen } from './ui/screens/ScheduleScreen';
 
 // ════════════════════════════════════════════════════
 // MAIN APP — Screen Router
 // ════════════════════════════════════════════════════
 
-type Screen = { type: 'profile' } | { type: 'dashboard' } | { type: 'workspace'; poolId: string; poolName: string; signalingUrl?: string };
+type Screen = 
+  | { type: 'profile' } 
+  | { type: 'dashboard' } 
+  | { type: 'workspace'; poolId: string; poolName: string; signalingUrl?: string } 
+  | { type: 'calendar' }
+  | { type: 'notes' }
+  | { type: 'tasks' }
+  | { type: 'schedule' }
+  | { type: 'boards' }
+  | { type: 'trash' };
 
 function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(getUserProfile());
@@ -95,6 +105,10 @@ function App() {
     setScreen({ type: 'workspace', poolId, poolName, signalingUrl });
   };
 
+  const handleNavigate = (screenType: string) => {
+    setScreen({ type: screenType as any });
+  };
+
   const handleBack = () => {
     setScreen({ type: 'dashboard' });
   };
@@ -107,8 +121,20 @@ function App() {
     return <ProfileSetup onComplete={handleProfileComplete} />;
   }
 
+  const handleOpenCalendar = () => {
+    setScreen({ type: 'calendar' });
+  };
+
   if (screen.type === 'dashboard') {
-    return <HomeDashboard user={userProfile} onOpenPool={handleOpenPool} onLogout={handleLogout} />;
+    return <HomeDashboard user={userProfile} onOpenPool={handleOpenPool} onLogout={handleLogout} onOpenCalendar={handleOpenCalendar} onNavigate={handleNavigate} />;
+  }
+
+  if (screen.type === 'calendar') {
+    return <CalendarScreen user={userProfile} onBack={() => handleNavigate('dashboard')} onNavigate={handleNavigate} />;
+  }
+
+  if (screen.type === 'schedule') {
+    return <ScheduleScreen user={userProfile} onBack={() => handleNavigate('dashboard')} onNavigate={handleNavigate} />;
   }
 
   return (

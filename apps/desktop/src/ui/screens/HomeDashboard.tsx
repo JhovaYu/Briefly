@@ -12,10 +12,11 @@ import { useSettings, SettingsModal } from '../components/SettingsModal';
 import { NotificationsModal } from '../components/NotificationsModal';
 import { ScheduleScreen } from './ScheduleScreen';
 
-export function HomeDashboard({ user, onOpenPool, onLogout }: {
+export function HomeDashboard({ user, onOpenPool, onLogout, onOpenCalendar }: {
   user: UserProfile;
   onOpenPool: (poolId: string, name: string, signalingUrl?: string) => void;
   onLogout: () => void;
+  onOpenCalendar: () => void;
 }) {
   const [pools, setPools] = useState<PoolInfo[]>(getSavedPools());
   const [joinId, setJoinId] = useState('');
@@ -143,9 +144,9 @@ export function HomeDashboard({ user, onOpenPool, onLogout }: {
         </div>
 
         <nav className="db2-nav">
-          <button className="db2-nav-item active"><History size={16} /> Dashboard</button>
+          <button className="db2-nav-item active" onClick={() => setShowSchedule(false)}><History size={16} /> Dashboard</button>
           <button className="db2-nav-item"><FileText size={16} /> Notas</button>
-          <button className="db2-nav-item"><Calendar size={16} /> Calendario</button>
+          <button className="db2-nav-item" onClick={onOpenCalendar}><Calendar size={16} /> Calendario</button>
           <button className="db2-nav-item"><CheckSquare size={16} /> Tareas</button>
           <button className="db2-nav-item" onClick={() => setShowSchedule(true)}><Clock size={16} /> Horario</button>
           <button className="db2-nav-item"><Archive size={16} /> Tableros</button>
