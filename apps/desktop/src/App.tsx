@@ -8,7 +8,7 @@ if (SUPABASE_URL && SUPABASE_KEY) {
   IdentityManager.initializeCloud(SUPABASE_URL, SUPABASE_KEY);
 }
 
-import { getUserProfile, saveUserProfile, type UserProfile } from './core/domain/UserProfile';
+import { addPool, getUserProfile, saveUserProfile, type UserProfile } from './core/domain/UserProfile';
 import { ProfileSetup } from './ui/screens/ProfileSetup';
 import { HomeDashboard } from './ui/screens/HomeDashboard';
 import { PoolWorkspace } from './ui/screens/PoolWorkspace';
