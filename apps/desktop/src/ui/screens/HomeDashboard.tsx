@@ -10,13 +10,12 @@ import {
 } from '../../core/domain/UserProfile';
 import { useSettings, SettingsModal } from '../components/SettingsModal';
 import { NotificationsModal } from '../components/NotificationsModal';
-import { ScheduleScreen } from './ScheduleScreen';
-
-export function HomeDashboard({ user, onOpenPool, onLogout, onOpenCalendar }: {
+export function HomeDashboard({ user, onOpenPool, onLogout, onOpenCalendar, onNavigate }: {
   user: UserProfile;
   onOpenPool: (poolId: string, name: string, signalingUrl?: string) => void;
   onLogout: () => void;
   onOpenCalendar: () => void;
+  onNavigate: (route: string) => void;
 }) {
   const [pools, setPools] = useState<PoolInfo[]>(getSavedPools());
   const [joinId, setJoinId] = useState('');
@@ -28,7 +27,6 @@ export function HomeDashboard({ user, onOpenPool, onLogout, onOpenCalendar }: {
   const settings = useSettings();
   const [showSettings, setShowSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showSchedule, setShowSchedule] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -119,10 +117,6 @@ export function HomeDashboard({ user, onOpenPool, onLogout, onOpenCalendar }: {
 
   const sorted = [...pools].sort((a, b) => b.lastOpened - a.lastOpened);
 
-  if (showSchedule) {
-    return <ScheduleScreen user={user} onBack={() => setShowSchedule(false)} />;
-  }
-
   return (
     <div className="db2-container">
       {/* SIDEBAR */}
@@ -144,11 +138,11 @@ export function HomeDashboard({ user, onOpenPool, onLogout, onOpenCalendar }: {
         </div>
 
         <nav className="db2-nav">
-          <button className="db2-nav-item active" onClick={() => setShowSchedule(false)}><History size={16} /> Dashboard</button>
+          <button className="db2-nav-item active"><History size={16} /> Dashboard</button>
           <button className="db2-nav-item"><FileText size={16} /> Notas</button>
           <button className="db2-nav-item" onClick={onOpenCalendar}><Calendar size={16} /> Calendario</button>
           <button className="db2-nav-item"><CheckSquare size={16} /> Tareas</button>
-          <button className="db2-nav-item" onClick={() => setShowSchedule(true)}><Clock size={16} /> Horario</button>
+          <button className="db2-nav-item" onClick={() => onNavigate('schedule')}><Clock size={16} /> Horario</button>
           <button className="db2-nav-item"><Archive size={16} /> Tableros</button>
           <button className="db2-nav-item"><Trash2 size={16} /> Papelera</button>
         </nav>
