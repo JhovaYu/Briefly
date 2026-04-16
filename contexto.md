@@ -10,7 +10,7 @@
 - **Versión actual**: 1.2.0
 - **Equipo**: MasterCoders AI
 - **Repositorio**: https://github.com/JhovaYu/Briefly
-- **Rama activa de desarrollo**: `feature/jhovanny-login-redesign`
+- **Rama activa de desarrollo**: `feature/tasks-screen` (próxima sesión)
 - **Ramas existentes**:
   - `main` — producción/estable
   - `feature/jhovanny-login-redesign` — redesign UI activo (login + dashboard)

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="apps/desktop/public/briefly-logo.png" alt="Briefly Logo" width="80" />
+<img src="apps/desktop/public/logo.png" alt="Briefly Logo" width="80" />
 
 # Briefly
 
