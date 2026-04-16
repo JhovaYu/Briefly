@@ -229,16 +229,39 @@ interface TaskCardProps {
   onStateCycle: (id: string) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
+  onInlineRename: (id: string, newText: string) => void;
 }
 
-function TaskCard({ task, onStateCycle, onEdit, onDelete }: TaskCardProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
+function TaskCard({ task, onStateCycle, onEdit, onDelete, onInlineRename }: TaskCardProps) {
+  const [menuOpen, setMenuOpen]   = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftText, setDraftText] = useState(task.text);
+  const inlineInputRef            = useRef<HTMLInputElement>(null);
   const meta  = STATUS_META[task.state];
   const pMeta = task.priority ? PRIORITY_META[task.priority] : null;
 
   // dueDate is a timestamp; compare with today for overdue
   const isOverdue = task.dueDate && task.state !== 'done' && task.dueDate < Date.now();
   const dueDateDisplay = task.dueDate ? tsToDateInput(task.dueDate) : null;
+
+  useEffect(() => {
+    if (isEditing) {
+      inlineInputRef.current?.focus();
+      inlineInputRef.current?.select();
+    }
+  }, [isEditing]);
+
+  const commitRename = () => {
+    const trimmed = draftText.trim();
+    if (trimmed && trimmed !== task.text) onInlineRename(task.id, trimmed);
+    else setDraftText(task.text); // revert if empty or unchanged
+    setIsEditing(false);
+  };
+
+  const cancelRename = () => {
+    setDraftText(task.text);
+    setIsEditing(false);
+  };
 
   return (
     <motion.div
@@ -264,11 +287,40 @@ function TaskCard({ task, onStateCycle, onEdit, onDelete }: TaskCardProps) {
       {/* Body */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <span style={{
-            fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)',
-            textDecoration: task.state === 'done' ? 'line-through' : 'none',
-            wordBreak: 'break-word',
-          }}>{task.text}</span>
+          {isEditing ? (
+            <input
+              ref={inlineInputRef}
+              value={draftText}
+              onChange={e => setDraftText(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={e => {
+                if (e.key === 'Enter')  { e.preventDefault(); commitRename(); }
+                if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
+              }}
+              style={{
+                fontSize: '14px', fontWeight: 500,
+                color: 'var(--text-primary)',
+                background: 'var(--bg-input)',
+                border: '1px solid var(--accent)',
+                borderRadius: '4px',
+                padding: '1px 6px',
+                outline: 'none',
+                fontFamily: 'var(--font-ui)',
+                width: '100%',
+                boxSizing: 'border-box',
+              }}
+            />
+          ) : (
+            <span
+              onDoubleClick={() => { setDraftText(task.text); setIsEditing(true); }}
+              title="Doble clic para renombrar"
+              style={{
+                fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)',
+                textDecoration: task.state === 'done' ? 'line-through' : 'none',
+                wordBreak: 'break-word', cursor: 'text',
+              }}
+            >{task.text}</span>
+          )}
           {/* Priority flag — only when medium or high */}
           {pMeta && task.priority !== 'low' && (
             <Flag size={12} style={{ color: pMeta.color, flexShrink: 0 }} />
@@ -298,32 +350,34 @@ function TaskCard({ task, onStateCycle, onEdit, onDelete }: TaskCardProps) {
         </div>
       </div>
 
-      {/* Context menu */}
-      <div style={{ position: 'relative', flexShrink: 0 }}>
-        <button
-          onClick={() => setMenuOpen(v => !v)}
-          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: '4px', borderRadius: '4px', display: 'flex' }}>
-          <MoreHorizontal size={16} />
-        </button>
-        {menuOpen && (
-          <div style={{
-            position: 'absolute', right: 0, top: '100%', marginTop: '4px', zIndex: 100,
-            background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px',
-            boxShadow: 'var(--shadow-md)', minWidth: '140px', padding: '4px', animation: 'fadeIn 100ms ease',
-          }}>
-            <button onClick={() => { onEdit(task); setMenuOpen(false); }}
-              style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: '7px 12px', textAlign: 'left', fontSize: '13px', color: 'var(--text-primary)', borderRadius: '5px', fontFamily: 'var(--font-ui)' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >Editar</button>
-            <button onClick={() => { onDelete(task.id); setMenuOpen(false); }}
-              style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: '7px 12px', textAlign: 'left', fontSize: '13px', color: 'var(--color-error)', borderRadius: '5px', fontFamily: 'var(--font-ui)' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.06)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >Eliminar</button>
-          </div>
-        )}
-      </div>
+      {/* Context menu — hidden while inline editing */}
+      {!isEditing && (
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <button
+            onClick={() => setMenuOpen(v => !v)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: '4px', borderRadius: '4px', display: 'flex' }}>
+            <MoreHorizontal size={16} />
+          </button>
+          {menuOpen && (
+            <div style={{
+              position: 'absolute', right: 0, top: '100%', marginTop: '4px', zIndex: 100,
+              background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px',
+              boxShadow: 'var(--shadow-md)', minWidth: '140px', padding: '4px', animation: 'fadeIn 100ms ease',
+            }}>
+              <button onClick={() => { onEdit(task); setMenuOpen(false); }}
+                style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: '7px 12px', textAlign: 'left', fontSize: '13px', color: 'var(--text-primary)', borderRadius: '5px', fontFamily: 'var(--font-ui)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >Editar</button>
+              <button onClick={() => { onDelete(task.id); setMenuOpen(false); }}
+                style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: '7px 12px', textAlign: 'left', fontSize: '13px', color: 'var(--color-error)', borderRadius: '5px', fontFamily: 'var(--font-ui)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.06)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >Eliminar</button>
+            </div>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -337,9 +391,10 @@ interface DraggableCardProps {
   onStateCycle: (id: string) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
+  onInlineRename: (id: string, newText: string) => void;
 }
 
-function DraggableCard({ task, onStateCycle, onEdit, onDelete }: DraggableCardProps) {
+function DraggableCard({ task, onStateCycle, onEdit, onDelete, onInlineRename }: DraggableCardProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   return (
@@ -356,7 +411,7 @@ function DraggableCard({ task, onStateCycle, onEdit, onDelete }: DraggableCardPr
         borderRadius: '8px',
       }}
     >
-      <TaskCard task={task} onStateCycle={onStateCycle} onEdit={onEdit} onDelete={onDelete} />
+      <TaskCard task={task} onStateCycle={onStateCycle} onEdit={onEdit} onDelete={onDelete} onInlineRename={onInlineRename} />
     </div>
   );
 }
@@ -373,9 +428,10 @@ interface KanbanColProps {
   onDelete: (id: string) => void;
   onDrop: (taskId: string, newState: TaskState) => void;
   onAddQuick: (state: TaskState) => void;
+  onInlineRename: (id: string, newText: string) => void;
 }
 
-function KanbanCol({ state, tasks, onStateCycle, onEdit, onDelete, onDrop, onAddQuick }: KanbanColProps) {
+function KanbanCol({ state, tasks, onStateCycle, onEdit, onDelete, onDrop, onAddQuick, onInlineRename }: KanbanColProps) {
   const meta = STATUS_META[state];
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -425,7 +481,7 @@ function KanbanCol({ state, tasks, onStateCycle, onEdit, onDelete, onDrop, onAdd
         </div>
       ) : (
         tasks.map(task => (
-          <DraggableCard key={task.id} task={task} onStateCycle={onStateCycle} onEdit={onEdit} onDelete={onDelete} />
+          <DraggableCard key={task.id} task={task} onStateCycle={onStateCycle} onEdit={onEdit} onDelete={onDelete} onInlineRename={onInlineRename} />
         ))
       )}
       {/* Drop zone placeholder — visible only when dragging over this column */}
@@ -557,6 +613,10 @@ export function TasksScreen({ user, yjsDoc, onBack, onNavigate }: TasksScreenPro
 
   const handleKanbanDrop = (taskId: string, newState: TaskState) => {
     serviceRef.current?.updateTask(taskId, { state: newState });
+  };
+
+  const handleInlineRename = (id: string, newText: string) => {
+    serviceRef.current?.updateTask(id, { text: newText });
   };
 
   const openCreateWithState = (s: TaskState) => {
@@ -784,7 +844,7 @@ export function TasksScreen({ user, yjsDoc, onBack, onNavigate }: TasksScreenPro
               // ── LIST VIEW ──────────────────────────────────────────
               <div style={{ height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '2px' }}>
                 {filteredTasks.map(task => (
-                  <TaskCard key={task.id} task={task} onStateCycle={cycleState} onEdit={handleEdit} onDelete={handleDelete} />
+                  <TaskCard key={task.id} task={task} onStateCycle={cycleState} onEdit={handleEdit} onDelete={handleDelete} onInlineRename={handleInlineRename} />
                 ))}
               </div>
             ) : (
@@ -800,6 +860,7 @@ export function TasksScreen({ user, yjsDoc, onBack, onNavigate }: TasksScreenPro
                     onDelete={handleDelete}
                     onDrop={handleKanbanDrop}
                     onAddQuick={openCreateWithState}
+                    onInlineRename={handleInlineRename}
                   />
                 ))}
               </div>
