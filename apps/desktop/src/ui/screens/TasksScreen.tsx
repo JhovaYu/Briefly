@@ -284,9 +284,10 @@ function TaskCard({ task, onStateCycle, onEdit, onDelete, onInlineRename }: Task
       onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--accent)'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--shadow-sm)'; }}
       onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'; }}
     >
-      {/* State toggle */}
+      {/* State toggle — stopPropagation prevents DraggableCard from intercepting the click as a drag */}
       <button
-        onClick={() => onStateCycle(task.id)}
+        onClick={e => { e.stopPropagation(); onStateCycle(task.id); }}
+        onMouseDown={e => e.stopPropagation()}
         title={`Estado: ${meta.label} — clic para cambiar`}
         style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: meta.color, padding: '2px', marginTop: '1px', flexShrink: 0 }}>
         {meta.icon}
@@ -462,7 +463,15 @@ function DraggableCard({ task, onStateCycle, onEdit, onDelete, onInlineRename }:
   return (
     <div
       draggable
-      onDragStart={e => { e.dataTransfer.setData('taskId', task.id); setIsDragging(true); }}
+      onDragStart={e => {
+        // Ignore drag events originating from interactive children (buttons)
+        if ((e.target as HTMLElement).closest('button')) {
+          e.preventDefault();
+          return;
+        }
+        e.dataTransfer.setData('taskId', task.id);
+        setIsDragging(true);
+      }}
       onDragEnd={() => setIsDragging(false)}
       style={{
         cursor: isDragging ? 'grabbing' : 'grab',
@@ -581,6 +590,11 @@ export function TasksScreen({ user, yjsDoc, onBack, onNavigate }: TasksScreenPro
   const [formOpen, setFormOpen]             = useState(false);
   const [editingTask, setEditingTask]       = useState<Task | undefined>(undefined);
   const [defaultState, setDefaultState]     = useState<TaskState>('pending');
+  const [pendingDelete, setPendingDelete]   = useState<{
+    id: string;
+    text: string;
+    timeoutId: ReturnType<typeof setTimeout>;
+  } | null>(null);
 
   // Initialize TaskService and resolve (or create) the personal TaskList
   useEffect(() => {
@@ -606,6 +620,29 @@ export function TasksScreen({ user, yjsDoc, onBack, onNavigate }: TasksScreenPro
     tasksMap.observe(refresh);
     return () => tasksMap.unobserve(refresh);
   }, [yjsDoc, personalListId]);
+
+  // ── Shortcut global: Shift+N → abrir modal de nueva tarea ──
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (formOpen) return;
+      const tag = (document.activeElement as HTMLElement | null)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if (e.key === 'N' && e.shiftKey) {
+        e.preventDefault(); // evita que la 'N' se escriba en el input que recibe foco
+        setEditingTask(undefined);
+        setDefaultState('pending');
+        setFormOpen(true);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [formOpen]);
+
+  // ── Cleanup pending-delete timer on unmount ──
+  useEffect(() => {
+    return () => { if (pendingDelete) clearTimeout(pendingDelete.timeoutId); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── CRUD ──────────────────────────────────────
 
@@ -669,7 +706,22 @@ export function TasksScreen({ user, yjsDoc, onBack, onNavigate }: TasksScreenPro
     setEditingTask(undefined);
   };
 
-  const handleDelete = (id: string) => serviceRef.current?.deleteTask(id);
+  const handleDelete = (id: string) => {
+    // If there's already a pending delete, flush it immediately before queuing a new one
+    if (pendingDelete) {
+      clearTimeout(pendingDelete.timeoutId);
+      serviceRef.current?.deleteTask(pendingDelete.id);
+    }
+    const taskToDelete = tasks.find(t => t.id === id);
+    if (!taskToDelete) return;
+
+    const timeoutId = setTimeout(() => {
+      serviceRef.current?.deleteTask(id);
+      setPendingDelete(null);
+    }, 5000);
+
+    setPendingDelete({ id, text: taskToDelete.text, timeoutId });
+  };
 
   const cycleState = (id: string) => {
     const order: TaskState[] = ['pending', 'working', 'done'];
@@ -698,6 +750,7 @@ export function TasksScreen({ user, yjsDoc, onBack, onNavigate }: TasksScreenPro
   const PRIORITY_ORDER: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 };
 
   const filteredTasks = tasks
+    .filter(t => t.id !== pendingDelete?.id) // hide soft-deleted task immediately
     .filter(t => filterState === 'all' || t.state === filterState)
     .filter(t => filterPriority === 'all' || t.priority === filterPriority)
     .filter(t => {
@@ -949,6 +1002,45 @@ export function TasksScreen({ user, yjsDoc, onBack, onNavigate }: TasksScreenPro
             onSave={editingTask ? handleUpdate : handleCreate}
             onClose={() => { setFormOpen(false); setEditingTask(undefined); }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* ─── UNDO TOAST — Soft delete con 5s de ventana ─── */}
+      <AnimatePresence>
+        {pendingDelete && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            style={{
+              position: 'fixed', bottom: '24px', left: '24px', zIndex: 9998,
+              background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+              borderRadius: '8px', boxShadow: 'var(--shadow-md)',
+              padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px',
+              fontSize: '13px', color: 'var(--text-primary)', fontFamily: 'var(--font-ui)',
+            }}
+          >
+            <Trash2 size={14} style={{ color: 'var(--color-error)', flexShrink: 0 }} />
+            <span style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              "{pendingDelete.text}" eliminada
+            </span>
+            <button
+              onClick={() => {
+                clearTimeout(pendingDelete.timeoutId);
+                setPendingDelete(null);
+                // La tarea nunca se borró de Yjs — solo se retira del estado pendingDelete
+              }}
+              style={{
+                background: 'var(--accent-light)', border: 'none', borderRadius: '4px',
+                color: 'var(--accent)', fontSize: '12px', fontWeight: 600,
+                padding: '3px 10px', cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                flexShrink: 0,
+              }}
+            >
+              Deshacer
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
     </>
