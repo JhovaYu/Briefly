@@ -1,7 +1,7 @@
 {
   "name": "Briefly",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Notas colaborativas P2P — sin servidores, inspirado en Notion y Obsidian",
   "author": "MasterCoders AI",
   "main": "electron/main.cjs",
@@ -18,8 +18,8 @@
     "test": "vitest run"
   },
   "build": {
-    "appId": "com.fluent.app",
-    "productName": "Fluent",
+    "appId": "com.briefly.app",
+    "productName": "Briefly",
     "directories": {
       "output": "release"
     },
