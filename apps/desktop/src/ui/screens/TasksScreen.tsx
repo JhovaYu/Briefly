@@ -1,25 +1,398 @@
-import { useState, useCallback, useRef } from 'react';
-import { type Task } from '@tuxnotas/shared';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  History, FileText, Calendar, CheckSquare, Clock, Archive,
+  Trash2, Settings, LogOut, Sun, Moon, Bell, Plus, X,
+  GripVertical, Circle, CheckCircle2, AlertCircle, Loader2,
+  Filter, SortAsc, LayoutList, LayoutGrid, Search, MoreHorizontal,
+  Flag, Tag
+} from 'lucide-react';
 import type { UserProfile } from '../../core/domain/UserProfile';
 
-// ─────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// DOMAIN TYPES
+// ─────────────────────────────────────────────
 
 type TaskStatus = 'pending' | 'working' | 'done';
-type ViewMode  = 'list' | 'kanban';
-type Priority  = 'low' | 'medium' | 'high';
+type TaskPriority = 'low' | 'medium' | 'high';
 
-interface LocalTask {
+interface Task {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   status: TaskStatus;
-  priority: Priority;
-  createdAt: number;
-  dueDate?: string;
+  priority: TaskPriority;
   tags: string[];
+  createdAt: number;
+  dueDate?: string; // ISO date string yyyy-mm-dd
 }
+
+// ─────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────
+
+const STORAGE_KEY = 'briefly_tasks_v1';
+
+const STATUS_META: Record<TaskStatus, { label: string; color: string; bgVar: string; icon: React.ReactNode }> = {
+  pending:  { label: 'Pendiente', color: 'var(--text-tertiary)',  bgVar: 'var(--bg-secondary)', icon: <Circle size={14} /> },
+  working:  { label: 'En progreso', color: 'var(--accent)',       bgVar: 'var(--accent-light)', icon: <Loader2 size={14} style={{ animation: 'spin 1.5s linear infinite' }} /> },
+  done:     { label: 'Completada', color: 'var(--color-success)', bgVar: 'rgba(16,185,129,0.08)', icon: <CheckCircle2 size={14} /> },
+};
+
+const PRIORITY_META: Record<TaskPriority, { label: string; color: string }> = {
+  low:    { label: 'Baja',   color: 'var(--text-secondary)' },
+  medium: { label: 'Media',  color: 'var(--color-warning)' },
+  high:   { label: 'Alta',   color: 'var(--color-error)' },
+};
+
+// ─────────────────────────────────────────────
+// PERSISTENCE HELPERS
+// ─────────────────────────────────────────────
+
+const loadTasks = (): Task[] => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+};
+
+const saveTasks = (tasks: Task[]) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+};
+
+const newId = () => Math.random().toString(36).slice(2, 10);
+
+// ─────────────────────────────────────────────
+// TASK FORM MODAL
+// ─────────────────────────────────────────────
+
+interface TaskFormProps {
+  initial?: Partial<Task>;
+  onSave: (data: Omit<Task, 'id' | 'createdAt'>) => void;
+  onClose: () => void;
+}
+
+function TaskForm({ initial, onSave, onClose }: TaskFormProps) {
+  const [title, setTitle] = useState(initial?.title ?? '');
+  const [description, setDescription] = useState(initial?.description ?? '');
+  const [status, setStatus] = useState<TaskStatus>(initial?.status ?? 'pending');
+  const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? 'medium');
+  const [dueDate, setDueDate] = useState(initial?.dueDate ?? '');
+  const [tagInput, setTagInput] = useState('');
+  const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
+  const titleRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { titleRef.current?.focus(); }, []);
+
+  const handleAddTag = (e: React.KeyboardEvent) => {
+    if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+      e.preventDefault();
+      if (!tags.includes(tagInput.trim())) setTags([...tags, tagInput.trim()]);
+      setTagInput('');
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    onSave({ title: title.trim(), description: description.trim(), status, priority, tags, dueDate: dueDate || undefined });
+  };
+
+  const overlayStyle: React.CSSProperties = {
+    position: 'fixed', inset: 0, zIndex: 9999,
+    background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    animation: 'fadeIn 120ms ease',
+  };
+
+  const modalStyle: React.CSSProperties = {
+    background: 'var(--bg-modal)', border: '1px solid var(--border-color)',
+    borderRadius: '12px', boxShadow: 'var(--shadow-lg)', width: '480px', maxWidth: '95vw',
+    padding: '28px', display: 'flex', flexDirection: 'column', gap: '18px',
+    animation: 'fadeIn 150ms ease',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)',
+    textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px',
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '8px 12px', borderRadius: '6px',
+    border: '1px solid var(--border-input)', background: 'var(--bg-input)',
+    color: 'var(--text-primary)', fontSize: '14px', fontFamily: 'var(--font-ui)',
+    outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.15s',
+  };
+
+  const selectStyle: React.CSSProperties = { ...inputStyle, cursor: 'pointer' };
+
+  return (
+    <div style={overlayStyle} onClick={onClose}>
+      <form style={modalStyle} onSubmit={handleSubmit} onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+            {initial?.id ? 'Editar tarea' : 'Nueva tarea'}
+          </h3>
+          <button type="button" onClick={onClose}
+            style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Title */}
+        <div>
+          <label style={labelStyle}>Título *</label>
+          <input ref={titleRef} style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} placeholder="¿Qué hay que hacer?" />
+        </div>
+
+        {/* Description */}
+        <div>
+          <label style={labelStyle}>Descripción</label>
+          <textarea style={{ ...inputStyle, minHeight: '72px', resize: 'vertical' } as React.CSSProperties}
+            value={description} onChange={e => setDescription(e.target.value)} placeholder="Detalles opcionales..." />
+        </div>
+
+        {/* Row: Status + Priority */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div>
+            <label style={labelStyle}>Estado</label>
+            <select style={selectStyle} value={status} onChange={e => setStatus(e.target.value as TaskStatus)}>
+              <option value="pending">Pendiente</option>
+              <option value="working">En progreso</option>
+              <option value="done">Completada</option>
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Prioridad</label>
+            <select style={selectStyle} value={priority} onChange={e => setPriority(e.target.value as TaskPriority)}>
+              <option value="low">Baja</option>
+              <option value="medium">Media</option>
+              <option value="high">Alta</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Due Date */}
+        <div>
+          <label style={labelStyle}>Fecha límite</label>
+          <input type="date" style={inputStyle} value={dueDate} onChange={e => setDueDate(e.target.value)} />
+        </div>
+
+        {/* Tags */}
+        <div>
+          <label style={labelStyle}>Etiquetas (Enter para añadir)</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+            {tags.map(t => (
+              <span key={t} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '20px', background: 'var(--accent-light)', color: 'var(--accent)', fontSize: '12px', fontWeight: 500 }}>
+                {t}
+                <button type="button" onClick={() => setTags(tags.filter(x => x !== t))}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: 0, display: 'flex', lineHeight: 1 }}>
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+          <input style={inputStyle} value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={handleAddTag} placeholder="ej: frontend, urgent" />
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '4px' }}>
+          <button type="button" onClick={onClose}
+            style={{ padding: '8px 18px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-secondary)', fontSize: '13px', cursor: 'pointer', fontFamily: 'var(--font-ui)' }}>
+            Cancelar
+          </button>
+          <button type="submit"
+            style={{ padding: '8px 18px', borderRadius: '6px', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}>
+            {initial?.id ? 'Guardar cambios' : 'Crear tarea'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// TASK CARD (List view)
+// ─────────────────────────────────────────────
+
+interface TaskCardProps {
+  task: Task;
+  onStatusCycle: (id: string) => void;
+  onEdit: (task: Task) => void;
+  onDelete: (id: string) => void;
+}
+
+function TaskCard({ task, onStatusCycle, onEdit, onDelete }: TaskCardProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const meta = STATUS_META[task.status];
+  const pMeta = PRIORITY_META[task.priority];
+  const isOverdue = task.dueDate && task.status !== 'done' && new Date(task.dueDate) < new Date();
+
+  return (
+    <div
+      style={{
+        background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px',
+        padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: '12px',
+        transition: 'border-color 0.15s, box-shadow 0.15s', cursor: 'default',
+        opacity: task.status === 'done' ? 0.7 : 1,
+        position: 'relative',
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--accent)'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--shadow-sm)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'; }}
+    >
+      {/* Status toggle */}
+      <button
+        onClick={() => onStatusCycle(task.id)}
+        title={`Estado: ${meta.label} — clic para cambiar`}
+        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: meta.color, padding: '2px', marginTop: '1px', flexShrink: 0 }}>
+        {meta.icon}
+      </button>
+
+      {/* Body */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{
+            fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)',
+            textDecoration: task.status === 'done' ? 'line-through' : 'none',
+            wordBreak: 'break-word',
+          }}>{task.title}</span>
+          {/* Priority flag */}
+          {task.priority !== 'low' && (
+            <Flag size={12} style={{ color: pMeta.color, flexShrink: 0 }} />
+          )}
+        </div>
+        {task.description && (
+          <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2 }}>
+            {task.description}
+          </p>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+          {/* Status chip */}
+          <span style={{ fontSize: '11px', fontWeight: 500, padding: '2px 8px', borderRadius: '20px', background: meta.bgVar, color: meta.color }}>
+            {meta.label}
+          </span>
+          {/* Tags */}
+          {task.tags.map(t => (
+            <span key={t} style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '20px', background: 'var(--accent-light)', color: 'var(--accent)', fontWeight: 500 }}>{t}</span>
+          ))}
+          {/* Due date */}
+          {task.dueDate && (
+            <span style={{ fontSize: '11px', color: isOverdue ? 'var(--color-error)' : 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+              <AlertCircle size={11} style={{ display: isOverdue ? 'inline' : 'none' }} />
+              {isOverdue ? 'Vencida: ' : ''}{task.dueDate}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Context menu */}
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <button
+          onClick={() => setMenuOpen(v => !v)}
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: '4px', borderRadius: '4px', display: 'flex' }}>
+          <MoreHorizontal size={16} />
+        </button>
+        {menuOpen && (
+          <div style={{
+            position: 'absolute', right: 0, top: '100%', marginTop: '4px', zIndex: 100,
+            background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px',
+            boxShadow: 'var(--shadow-md)', minWidth: '140px', padding: '4px', animation: 'fadeIn 100ms ease',
+          }}>
+            <button onClick={() => { onEdit(task); setMenuOpen(false); }}
+              style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: '7px 12px', textAlign: 'left', fontSize: '13px', color: 'var(--text-primary)', borderRadius: '5px', fontFamily: 'var(--font-ui)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >Editar</button>
+            <button onClick={() => { onDelete(task.id); setMenuOpen(false); }}
+              style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: '7px 12px', textAlign: 'left', fontSize: '13px', color: 'var(--color-error)', borderRadius: '5px', fontFamily: 'var(--font-ui)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.06)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >Eliminar</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// KANBAN COLUMN
+// ─────────────────────────────────────────────
+
+interface KanbanColProps {
+  status: TaskStatus;
+  tasks: Task[];
+  onStatusCycle: (id: string) => void;
+  onEdit: (task: Task) => void;
+  onDelete: (id: string) => void;
+  onDrop: (taskId: string, newStatus: TaskStatus) => void;
+  onAddQuick: (status: TaskStatus) => void;
+}
+
+function KanbanCol({ status, tasks, onStatusCycle, onEdit, onDelete, onDrop, onAddQuick }: KanbanColProps) {
+  const meta = STATUS_META[status];
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true); };
+  const handleDragLeave = () => setIsDragOver(false);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault(); setIsDragOver(false);
+    const taskId = e.dataTransfer.getData('taskId');
+    if (taskId) onDrop(taskId, status);
+  };
+
+  return (
+    <div
+      onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
+      style={{
+        flex: 1, minWidth: '240px', display: 'flex', flexDirection: 'column', gap: '8px',
+        background: isDragOver ? meta.bgVar : 'transparent',
+        border: isDragOver ? `2px dashed ${meta.color}` : '2px dashed transparent',
+        borderRadius: '10px', padding: '8px', transition: 'background 0.15s, border-color 0.15s',
+        boxSizing: 'border-box',
+      }}
+    >
+      {/* Col header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px 8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ color: meta.color }}>{meta.icon}</span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{meta.label}</span>
+          <span style={{ fontSize: '12px', fontWeight: 600, padding: '1px 7px', borderRadius: '20px', background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+            {tasks.length}
+          </span>
+        </div>
+        <button onClick={() => onAddQuick(status)}
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: '3px', borderRadius: '4px', display: 'flex' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-tertiary)'; }}
+          title="Añadir tarea"
+        >
+          <Plus size={16} />
+        </button>
+      </div>
+
+      {/* Cards */}
+      {tasks.length === 0 ? (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 16px', color: 'var(--text-faint, var(--text-tertiary))', textAlign: 'center' }}>
+          <CheckSquare size={28} style={{ marginBottom: '8px', opacity: 0.3 }} />
+          <span style={{ fontSize: '12px', opacity: 0.6 }}>Sin tareas aquí</span>
+        </div>
+      ) : (
+        tasks.map(task => (
+          <div key={task.id} draggable
+            onDragStart={e => { e.dataTransfer.setData('taskId', task.id); }}
+            style={{ cursor: 'grab' }}>
+            <TaskCard task={task} onStatusCycle={onStatusCycle} onEdit={onEdit} onDelete={onDelete} />
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// SCREEN PROPS
+// ─────────────────────────────────────────────
 
 interface TasksScreenProps {
   user: UserProfile;
@@ -27,743 +400,304 @@ interface TasksScreenProps {
   onNavigate: (screen: string) => void;
 }
 
-// ─────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// MAIN SCREEN
+// ─────────────────────────────────────────────
 
-const STATUS_LABELS: Record<TaskStatus, string> = {
-  pending: 'Por hacer',
-  working: 'En progreso',
-  done:    'Completado',
-};
+export function TasksScreen({ user, onBack, onNavigate }: TasksScreenProps) {
+  const [theme, setTheme] = useState<'light' | 'dark'>(
+    () => (localStorage.getItem('fluent-theme') as 'light' | 'dark') || 'dark'
+  );
+  const [tasks, setTasks] = useState<Task[]>(loadTasks);
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+  const [filterStatus, setFilterStatus] = useState<TaskStatus | 'all'>('all');
+  const [filterPriority, setFilterPriority] = useState<TaskPriority | 'all'>('all');
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'createdAt' | 'priority' | 'dueDate'>('createdAt');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | undefined>(undefined);
+  const [defaultStatus, setDefaultStatus] = useState<TaskStatus>('pending');
 
-const STATUS_COLORS: Record<TaskStatus, string> = {
-  pending: 'var(--color-warning, #f59e0b)',
-  working: 'var(--accent)',
-  done:    'var(--color-success)',
-};
+  // Sync theme
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('fluent-theme', theme);
+  }, [theme]);
 
-const PRIORITY_LABELS: Record<Priority, string> = {
-  low:    'Baja',
-  medium: 'Media',
-  high:   'Alta',
-};
+  // Persist tasks
+  useEffect(() => { saveTasks(tasks); }, [tasks]);
 
-const PRIORITY_COLORS: Record<Priority, string> = {
-  low:    'var(--text-tertiary)',
-  medium: 'var(--color-warning, #f59e0b)',
-  high:   'var(--color-error)',
-};
+  const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
 
-const generateId = () =>
-  `task_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  // ── CRUD ──────────────────────────────────────
+  const handleCreate = (data: Omit<Task, 'id' | 'createdAt'>) => {
+    const task: Task = { ...data, id: newId(), createdAt: Date.now() };
+    setTasks(prev => [task, ...prev]);
+    setFormOpen(false);
+    setEditingTask(undefined);
+  };
 
-const SEED_TASKS: LocalTask[] = [
-  {
-    id: generateId(),
-    title: 'Configurar Signaling Server en AWS',
-    description: 'Deploy del servidor y-webrtc en EC2. Actualizar variable VITE_SIGNALING_URL en todos los clientes.',
-    status: 'pending',
-    priority: 'high',
-    createdAt: Date.now() - 86400000 * 3,
-    tags: ['infraestructura', 'devops'],
-  },
-  {
-    id: generateId(),
-    title: 'Redesign HomeDashboard',
-    description: 'Aplicar feedback del profesor: más visual, iconografía, gráficos circulares estilo Notion.',
-    status: 'working',
-    priority: 'high',
-    createdAt: Date.now() - 86400000 * 2,
-    tags: ['diseño', 'ui'],
-  },
-  {
-    id: generateId(),
-    title: 'Conectar jszip → Export Service',
-    description: 'Implementar microservicio #5. Exportar Pool completo a .zip.',
-    status: 'pending',
-    priority: 'medium',
-    createdAt: Date.now() - 86400000,
-    tags: ['feature', 'microservicio'],
-  },
-  {
-    id: generateId(),
-    title: 'Implementar BoardsScreen',
-    description: 'Pantalla de tableros Kanban colaborativo con Yjs.',
-    status: 'pending',
-    priority: 'medium',
-    createdAt: Date.now() - 3600000 * 5,
-    tags: ['feature', 'yjs'],
-  },
-  {
-    id: generateId(),
-    title: 'CalendarScreen entregado al profesor',
-    description: 'Vista completa de calendario de eventos con integración Supabase.',
-    status: 'done',
-    priority: 'high',
-    createdAt: Date.now() - 86400000 * 7,
-    tags: ['entregado'],
-  },
-];
+  const handleEdit = (task: Task) => {
+    setEditingTask(task);
+    setFormOpen(true);
+  };
 
-// ─────────────────────────────────────────────────────────────
-// Kanban Column
-// ─────────────────────────────────────────────────────────────
+  const handleUpdate = (data: Omit<Task, 'id' | 'createdAt'>) => {
+    if (!editingTask) return;
+    setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, ...data } : t));
+    setFormOpen(false);
+    setEditingTask(undefined);
+  };
 
-interface KanbanColumnProps {
-  status: TaskStatus;
-  tasks: LocalTask[];
-  onStatusChange: (id: string, status: TaskStatus) => void;
-  onEdit: (task: LocalTask) => void;
-  onDelete: (id: string) => void;
-  dragOverCol: TaskStatus | null;
-  onDragOver: (e: React.DragEvent, col: TaskStatus) => void;
-  onDrop: (e: React.DragEvent, col: TaskStatus) => void;
-  onDragLeave: () => void;
-  onDragStart: (e: React.DragEvent, id: string) => void;
-}
+  const handleDelete = (id: string) => {
+    setTasks(prev => prev.filter(t => t.id !== id));
+  };
 
-function KanbanColumn({
-  status, tasks, onStatusChange, onEdit, onDelete,
-  dragOverCol, onDragOver, onDrop, onDragLeave, onDragStart,
-}: KanbanColumnProps) {
-  const isOver = dragOverCol === status;
+  const cycleStatus = (id: string) => {
+    const order: TaskStatus[] = ['pending', 'working', 'done'];
+    setTasks(prev => prev.map(t => {
+      if (t.id !== id) return t;
+      const nextIdx = (order.indexOf(t.status) + 1) % order.length;
+      return { ...t, status: order[nextIdx] };
+    }));
+  };
 
+  const handleKanbanDrop = (taskId: string, newStatus: TaskStatus) => {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+  };
+
+  const openCreateWithStatus = (status: TaskStatus) => {
+    setDefaultStatus(status);
+    setEditingTask(undefined);
+    setFormOpen(true);
+  };
+
+  // ── FILTERING / SORTING ────────────────────
+  const PRIORITY_ORDER: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 };
+
+  const filteredTasks = tasks
+    .filter(t => filterStatus === 'all' || t.status === filterStatus)
+    .filter(t => filterPriority === 'all' || t.priority === filterPriority)
+    .filter(t => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return t.title.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q) || t.tags.some(tag => tag.toLowerCase().includes(q));
+    })
+    .sort((a, b) => {
+      if (sortBy === 'priority') return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+      if (sortBy === 'dueDate') {
+        if (!a.dueDate) return 1; if (!b.dueDate) return -1;
+        return a.dueDate.localeCompare(b.dueDate);
+      }
+      return b.createdAt - a.createdAt;
+    });
+
+  // Stats for header chips
+  const total = tasks.length;
+  const pending = tasks.filter(t => t.status === 'pending').length;
+  const working = tasks.filter(t => t.status === 'working').length;
+  const done = tasks.filter(t => t.status === 'done').length;
+  const progressPct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  // ── RENDER ────────────────────────────────
   return (
-    <div
-      className={`tasks-kanban-col${isOver ? ' drag-over' : ''}`}
-      onDragOver={e => onDragOver(e, status)}
-      onDrop={e => onDrop(e, status)}
-      onDragLeave={onDragLeave}
-    >
-      <div className="tasks-kanban-col-header">
-        <span
-          className="tasks-status-dot"
-          style={{ background: STATUS_COLORS[status] }}
-        />
-        <span className="tasks-kanban-col-title">{STATUS_LABELS[status]}</span>
-        <span className="tasks-kanban-col-count">{tasks.length}</span>
-      </div>
+    <>
+      {/* Keyframes inline — minimal, no external dep */}
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .tasks-card-row:hover { background: var(--bg-hover) !important; }
+      `}</style>
 
-      <div className="tasks-kanban-cards">
-        {tasks.length === 0 && (
-          <div className="tasks-empty-col">
-            <span>Arrastra aquí</span>
+      <div className="db2-container">
+        {/* ─── SIDEBAR (identical pattern to CalendarScreen) ─── */}
+        <aside className="db2-sidebar">
+          <div className="db2-brand">
+            <div className="db2-logo" style={{ background: 'transparent' }}>
+              <img src="./logo.png" alt="Logo" style={{ width: 26, height: 26, objectFit: 'contain' }} />
+            </div>
+            <div className="db2-brand-text"><h2>Briefly</h2><span>Estudio Personal</span></div>
           </div>
-        )}
-        {tasks.map(task => (
-          <div
-            key={task.id}
-            className="tasks-kanban-card"
-            draggable
-            onDragStart={e => onDragStart(e, task.id)}
-          >
-            <div className="tasks-kanban-card-top">
-              <span
-                className="tasks-priority-badge"
-                style={{ color: PRIORITY_COLORS[task.priority] }}
-              >
-                {PRIORITY_LABELS[task.priority]}
-              </span>
-              <div className="tasks-card-actions">
-                <button
-                  className="tasks-icon-btn"
-                  title="Editar"
-                  onClick={() => onEdit(task)}
-                >
-                  <PencilIcon />
-                </button>
-                <button
-                  className="tasks-icon-btn danger"
-                  title="Eliminar"
-                  onClick={() => onDelete(task.id)}
-                >
-                  <TrashIcon />
-                </button>
+
+          <div className="db2-new-btn-wrapper">
+            <button className="db2-btn-primary" onClick={() => { setEditingTask(undefined); setDefaultStatus('pending'); setFormOpen(true); }}>
+              <Plus size={16} /> Nueva Tarea
+            </button>
+          </div>
+
+          <nav className="db2-nav">
+            <button className="db2-nav-item" onClick={() => onNavigate('dashboard')}><History size={16} /> Dashboard</button>
+            <button className="db2-nav-item" onClick={() => onNavigate('notes')}><FileText size={16} /> Notas</button>
+            <button className="db2-nav-item" onClick={() => onNavigate('calendar')}><Calendar size={16} /> Calendario</button>
+            <button className="db2-nav-item active" onClick={() => onNavigate('tasks')}><CheckSquare size={16} /> Tareas</button>
+            <button className="db2-nav-item" onClick={() => onNavigate('schedule')}><Clock size={16} /> Horario</button>
+            <button className="db2-nav-item" onClick={() => onNavigate('boards')}><Archive size={16} /> Tableros</button>
+            <button className="db2-nav-item" onClick={() => onNavigate('trash')}><Trash2 size={16} /> Papelera</button>
+          </nav>
+
+          <div className="db2-bottom-nav">
+            <div className="db2-user-profile">
+              <div className="db2-user-avatar2" style={{ background: user.color }}>
+                {user.name.charAt(0).toUpperCase()}
               </div>
+              <div className="db2-user-name2" title={user.name}>{user.name}</div>
+              <button className="db2-user-icon-btn" onClick={toggleTheme}>
+                {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+              </button>
+              <button className="db2-user-icon-btn"><Bell size={18} /></button>
+            </div>
+            <div className="db2-bottom-divider" />
+            <button className="db2-nav-item"><Settings size={16} /> Ajustes</button>
+            <button className="db2-nav-item"><LogOut size={16} /> Cerrar sesión</button>
+          </div>
+        </aside>
+
+        {/* ─── MAIN ─── */}
+        <main className="db2-main" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '24px 28px', boxSizing: 'border-box', gap: '20px', overflow: 'hidden' }}>
+
+          {/* ── Page Header ── */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 }}>
+            <div>
+              <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>Tareas</h1>
+              <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-tertiary)' }}>
+                {total} tarea{total !== 1 ? 's' : ''} · {progressPct}% completada{progressPct !== 1 ? 's' : ''}
+              </p>
             </div>
 
-            <p className="tasks-kanban-card-title">{task.title}</p>
-
-            {task.description && (
-              <p className="tasks-kanban-card-desc">{task.description}</p>
-            )}
-
-            <div className="tasks-kanban-card-footer">
-              {task.tags.slice(0, 2).map(tag => (
-                <span key={tag} className="tasks-tag">{tag}</span>
+            {/* Progress bar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {/* Stat chips */}
+              {([['pending', pending, STATUS_META.pending], ['working', working, STATUS_META.working], ['done', done, STATUS_META.done]] as const).map(([s, count, m]) => (
+                <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '20px', background: m.bgVar, color: m.color, fontSize: '12px', fontWeight: 600 }}>
+                  {m.icon}
+                  <span>{count}</span>
+                </div>
               ))}
-              <div className="tasks-status-cycle">
+            </div>
+          </div>
+
+          {/* ── Progress Bar ── */}
+          {total > 0 && (
+            <div style={{ flexShrink: 0 }}>
+              <div style={{ height: '4px', borderRadius: '4px', background: 'var(--bg-secondary)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${progressPct}%`, background: 'var(--color-success)', borderRadius: '4px', transition: 'width 0.4s ease' }} />
+              </div>
+            </div>
+          )}
+
+          {/* ── Toolbar ── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flexShrink: 0 }}>
+            {/* Search */}
+            <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: '320px' }}>
+              <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
+              <input
+                value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar tareas..."
+                style={{ width: '100%', padding: '7px 12px 7px 32px', border: '1px solid var(--border-input)', borderRadius: '6px', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'var(--font-ui)', outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            {/* Filter: Status */}
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}
+              style={{ padding: '7px 10px', border: '1px solid var(--border-input)', borderRadius: '6px', background: 'var(--bg-input)', color: 'var(--text-secondary)', fontSize: '13px', fontFamily: 'var(--font-ui)', cursor: 'pointer', outline: 'none' }}>
+              <option value="all">Todos los estados</option>
+              <option value="pending">Pendiente</option>
+              <option value="working">En progreso</option>
+              <option value="done">Completada</option>
+            </select>
+
+            {/* Filter: Priority */}
+            <select value={filterPriority} onChange={e => setFilterPriority(e.target.value as any)}
+              style={{ padding: '7px 10px', border: '1px solid var(--border-input)', borderRadius: '6px', background: 'var(--bg-input)', color: 'var(--text-secondary)', fontSize: '13px', fontFamily: 'var(--font-ui)', cursor: 'pointer', outline: 'none' }}>
+              <option value="all">Todas las prioridades</option>
+              <option value="high">Alta</option>
+              <option value="medium">Media</option>
+              <option value="low">Baja</option>
+            </select>
+
+            {/* Sort */}
+            <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
+              style={{ padding: '7px 10px', border: '1px solid var(--border-input)', borderRadius: '6px', background: 'var(--bg-input)', color: 'var(--text-secondary)', fontSize: '13px', fontFamily: 'var(--font-ui)', cursor: 'pointer', outline: 'none' }}>
+              <option value="createdAt">Más recientes</option>
+              <option value="priority">Prioridad</option>
+              <option value="dueDate">Fecha límite</option>
+            </select>
+
+            {/* Spacer */}
+            <div style={{ flex: 1 }} />
+
+            {/* View toggle */}
+            <div style={{ display: 'flex', gap: '2px', background: 'var(--bg-secondary)', padding: '3px', borderRadius: '7px', border: '1px solid var(--border-color)' }}>
+              {(['list', 'kanban'] as const).map(mode => (
+                <button key={mode} onClick={() => setViewMode(mode)}
+                  style={{ padding: '5px 12px', borderRadius: '5px', fontSize: '13px', fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-ui)', display: 'flex', alignItems: 'center', gap: '5px', background: viewMode === mode ? 'var(--bg-primary)' : 'transparent', color: viewMode === mode ? 'var(--text-primary)' : 'var(--text-tertiary)', boxShadow: viewMode === mode ? 'var(--shadow-sm)' : 'none', transition: 'all 0.15s' }}>
+                  {mode === 'list' ? <LayoutList size={14} /> : <LayoutGrid size={14} />}
+                  {mode === 'list' ? 'Lista' : 'Kanban'}
+                </button>
+              ))}
+            </div>
+
+            {/* New task btn (desktop) */}
+            <button onClick={() => { setEditingTask(undefined); setDefaultStatus('pending'); setFormOpen(true); }}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 16px', borderRadius: '6px', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)', flexShrink: 0 }}>
+              <Plus size={14} /> Nueva tarea
+            </button>
+          </div>
+
+          {/* ── Content ── */}
+          <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+            {filteredTasks.length === 0 && tasks.length === 0 ? (
+              // Empty state
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', color: 'var(--text-tertiary)' }}>
+                <CheckSquare size={48} style={{ opacity: 0.2 }} />
+                <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text-secondary)' }}>Sin tareas todavía</p>
+                <p style={{ margin: 0, fontSize: '13px', maxWidth: '30ch', textAlign: 'center' }}>Crea tu primera tarea para empezar a organizarte.</p>
+                <button onClick={() => { setEditingTask(undefined); setDefaultStatus('pending'); setFormOpen(true); }}
+                  style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 20px', borderRadius: '6px', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}>
+                  <Plus size={14} /> Crear primera tarea
+                </button>
+              </div>
+            ) : filteredTasks.length === 0 ? (
+              // No results state
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--text-tertiary)' }}>
+                <Search size={36} style={{ opacity: 0.25 }} />
+                <p style={{ margin: 0, fontSize: '14px' }}>Sin resultados para los filtros actuales</p>
+              </div>
+            ) : viewMode === 'list' ? (
+              // ── LIST VIEW ──────────────────────────────────────────
+              <div style={{ height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '2px' }}>
+                {filteredTasks.map(task => (
+                  <TaskCard key={task.id} task={task} onStatusCycle={cycleStatus} onEdit={handleEdit} onDelete={handleDelete} />
+                ))}
+              </div>
+            ) : (
+              // ── KANBAN VIEW ────────────────────────────────────────
+              <div style={{ height: '100%', display: 'flex', gap: '16px', overflowX: 'auto', overflowY: 'hidden', paddingBottom: '4px' }}>
                 {(['pending', 'working', 'done'] as TaskStatus[]).map(s => (
-                  <button
+                  <KanbanCol
                     key={s}
-                    className={`tasks-cycle-btn${task.status === s ? ' active' : ''}`}
-                    style={task.status === s ? { background: STATUS_COLORS[s] } : {}}
-                    title={STATUS_LABELS[s]}
-                    onClick={() => onStatusChange(task.id, s)}
+                    status={s}
+                    tasks={filteredTasks.filter(t => t.status === s)}
+                    onStatusCycle={cycleStatus}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onDrop={handleKanbanDrop}
+                    onAddQuick={openCreateWithStatus}
                   />
                 ))}
               </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// Minimal SVG Icons (inline — no extra dep)
-// ─────────────────────────────────────────────────────────────
-
-function PencilIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3 6 5 6 21 6"/>
-      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <line x1="12" y1="5" x2="12" y2="19"/>
-      <line x1="5" y1="12" x2="19" y2="12"/>
-    </svg>
-  );
-}
-
-function ArrowLeftIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="19" y1="12" x2="5" y2="12"/>
-      <polyline points="12 19 5 12 12 5"/>
-    </svg>
-  );
-}
-
-function ListIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <line x1="8" y1="6" x2="21" y2="6"/>
-      <line x1="8" y1="12" x2="21" y2="12"/>
-      <line x1="8" y1="18" x2="21" y2="18"/>
-      <line x1="3" y1="6" x2="3.01" y2="6"/>
-      <line x1="3" y1="12" x2="3.01" y2="12"/>
-      <line x1="3" y1="18" x2="3.01" y2="18"/>
-    </svg>
-  );
-}
-
-function KanbanIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="13"/>
-      <rect x="14" y="3" width="7" height="8"/>
-      <rect x="14" y="15" width="7" height="6"/>
-    </svg>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// Task Form Modal
-// ─────────────────────────────────────────────────────────────
-
-interface TaskFormProps {
-  initial?: Partial<LocalTask>;
-  onSave: (data: Omit<LocalTask, 'id' | 'createdAt'>) => void;
-  onClose: () => void;
-}
-
-function TaskForm({ initial, onSave, onClose }: TaskFormProps) {
-  const [title,       setTitle]       = useState(initial?.title       ?? '');
-  const [description, setDescription] = useState(initial?.description ?? '');
-  const [status,      setStatus]      = useState<TaskStatus>(initial?.status   ?? 'pending');
-  const [priority,    setPriority]    = useState<Priority>(initial?.priority ?? 'medium');
-  const [dueDate,     setDueDate]     = useState(initial?.dueDate ?? '');
-  const [tagInput,    setTagInput]    = useState((initial?.tags ?? []).join(', '));
-  const [error,       setError]       = useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) { setError('El título es obligatorio.'); return; }
-    onSave({
-      title:       title.trim(),
-      description: description.trim(),
-      status,
-      priority,
-      dueDate:     dueDate || undefined,
-      tags:        tagInput.split(',').map(t => t.trim()).filter(Boolean),
-    });
-  };
-
-  return (
-    <div className="tasks-modal-overlay" onClick={onClose}>
-      <div
-        className="tasks-modal"
-        onClick={e => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label={initial?.title ? 'Editar tarea' : 'Nueva tarea'}
-      >
-        <div className="tasks-modal-header">
-          <h2 className="tasks-modal-title">
-            {initial?.title ? 'Editar tarea' : 'Nueva tarea'}
-          </h2>
-          <button className="tasks-icon-btn" onClick={onClose} aria-label="Cerrar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="tasks-modal-form">
-          {error && <p className="tasks-form-error">{error}</p>}
-
-          <label className="tasks-form-label">
-            Título
-            <input
-              className="tasks-form-input"
-              value={title}
-              onChange={e => { setTitle(e.target.value); setError(''); }}
-              placeholder="¿Qué hay que hacer?"
-              autoFocus
-              required
-            />
-          </label>
-
-          <label className="tasks-form-label">
-            Descripción
-            <textarea
-              className="tasks-form-input tasks-form-textarea"
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Detalle opcional..."
-              rows={3}
-            />
-          </label>
-
-          <div className="tasks-form-row">
-            <label className="tasks-form-label" style={{ flex: 1 }}>
-              Estado
-              <select
-                className="tasks-form-input"
-                value={status}
-                onChange={e => setStatus(e.target.value as TaskStatus)}
-              >
-                {(Object.keys(STATUS_LABELS) as TaskStatus[]).map(s => (
-                  <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="tasks-form-label" style={{ flex: 1 }}>
-              Prioridad
-              <select
-                className="tasks-form-input"
-                value={priority}
-                onChange={e => setPriority(e.target.value as Priority)}
-              >
-                {(Object.keys(PRIORITY_LABELS) as Priority[]).map(p => (
-                  <option key={p} value={p}>{PRIORITY_LABELS[p]}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <label className="tasks-form-label">
-            Fecha límite
-            <input
-              className="tasks-form-input"
-              type="date"
-              value={dueDate}
-              onChange={e => setDueDate(e.target.value)}
-            />
-          </label>
-
-          <label className="tasks-form-label">
-            Etiquetas <span className="tasks-form-hint">(separadas por coma)</span>
-            <input
-              className="tasks-form-input"
-              value={tagInput}
-              onChange={e => setTagInput(e.target.value)}
-              placeholder="diseño, backend, urgente"
-            />
-          </label>
-
-          <div className="tasks-modal-footer">
-            <button type="button" className="tasks-btn-secondary" onClick={onClose}>
-              Cancelar
-            </button>
-            <button type="submit" className="tasks-btn-primary">
-              {initial?.title ? 'Guardar cambios' : 'Crear tarea'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// List View Row
-// ─────────────────────────────────────────────────────────────
-
-function TaskRow({
-  task,
-  onStatusToggle,
-  onEdit,
-  onDelete,
-}: {
-  task: LocalTask;
-  onStatusToggle: (id: string) => void;
-  onEdit: (task: LocalTask) => void;
-  onDelete: (id: string) => void;
-}) {
-  const nextStatus: Record<TaskStatus, TaskStatus> = {
-    pending: 'working',
-    working: 'done',
-    done:    'pending',
-  };
-
-  return (
-    <div className={`tasks-row${task.status === 'done' ? ' done' : ''}`}>
-      <button
-        className="tasks-check-btn"
-        style={{
-          borderColor: STATUS_COLORS[task.status],
-          background: task.status === 'done' ? STATUS_COLORS['done'] : 'transparent',
-        }}
-        onClick={() => onStatusToggle(task.id)}
-        title={`Marcar como ${STATUS_LABELS[nextStatus[task.status]]}`}
-        aria-label={`Estado: ${STATUS_LABELS[task.status]}. Click para avanzar.`}
-      >
-        {task.status === 'done' && (
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
-            stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-        )}
-        {task.status === 'working' && (
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="3" strokeLinecap="round">
-            <circle cx="12" cy="12" r="4" fill="currentColor"/>
-          </svg>
-        )}
-      </button>
-
-      <div className="tasks-row-body">
-        <span className="tasks-row-title">{task.title}</span>
-        {task.description && (
-          <span className="tasks-row-desc">{task.description}</span>
-        )}
-        <div className="tasks-row-meta">
-          <span
-            className="tasks-status-chip"
-            style={{ color: STATUS_COLORS[task.status], borderColor: STATUS_COLORS[task.status] }}
-          >
-            {STATUS_LABELS[task.status]}
-          </span>
-          <span
-            className="tasks-priority-chip"
-            style={{ color: PRIORITY_COLORS[task.priority] }}
-          >
-            {PRIORITY_LABELS[task.priority]}
-          </span>
-          {task.dueDate && (
-            <span className="tasks-due-chip">📅 {task.dueDate}</span>
-          )}
-          {task.tags.map(tag => (
-            <span key={tag} className="tasks-tag">{tag}</span>
-          ))}
-        </div>
-      </div>
-
-      <div className="tasks-row-actions">
-        <button className="tasks-icon-btn" title="Editar" onClick={() => onEdit(task)}>
-          <PencilIcon />
-        </button>
-        <button className="tasks-icon-btn danger" title="Eliminar" onClick={() => onDelete(task.id)}>
-          <TrashIcon />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// TasksScreen — Main Component
-// ─────────────────────────────────────────────────────────────
-
-export function TasksScreen({ user, onBack, onNavigate }: TasksScreenProps) {
-  const [tasks,      setTasks]      = useState<LocalTask[]>(SEED_TASKS);
-  const [view,       setView]       = useState<ViewMode>('list');
-  const [filter,     setFilter]     = useState<TaskStatus | 'all'>('all');
-  const [search,     setSearch]     = useState('');
-  const [showForm,   setShowForm]   = useState(false);
-  const [editTarget, setEditTarget] = useState<LocalTask | null>(null);
-  const [dragId,     setDragId]     = useState<string | null>(null);
-  const [dragOverCol, setDragOverCol] = useState<TaskStatus | null>(null);
-
-  // ── CRUD ──────────────────────────────────────────────────
-
-  const handleCreate = useCallback(
-    (data: Omit<LocalTask, 'id' | 'createdAt'>) => {
-      setTasks(prev => [{
-        id: generateId(),
-        createdAt: Date.now(),
-        ...data,
-      }, ...prev]);
-      setShowForm(false);
-    },
-    [],
-  );
-
-  const handleUpdate = useCallback(
-    (data: Omit<LocalTask, 'id' | 'createdAt'>) => {
-      if (!editTarget) return;
-      setTasks(prev =>
-        prev.map(t => t.id === editTarget.id ? { ...t, ...data } : t),
-      );
-      setEditTarget(null);
-    },
-    [editTarget],
-  );
-
-  const handleDelete = useCallback((id: string) => {
-    setTasks(prev => prev.filter(t => t.id !== id));
-  }, []);
-
-  const handleStatusChange = useCallback((id: string, status: TaskStatus) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, status } : t));
-  }, []);
-
-  const handleStatusToggle = useCallback((id: string) => {
-    const cycle: Record<TaskStatus, TaskStatus> = {
-      pending: 'working',
-      working: 'done',
-      done:    'pending',
-    };
-    setTasks(prev =>
-      prev.map(t => t.id === id ? { ...t, status: cycle[t.status] } : t),
-    );
-  }, []);
-
-  // ── Drag & Drop (Kanban) ──────────────────────────────────
-
-  const handleDragStart = (e: React.DragEvent, id: string) => {
-    setDragId(id);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent, col: TaskStatus) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverCol(col);
-  };
-
-  const handleDrop = (e: React.DragEvent, col: TaskStatus) => {
-    e.preventDefault();
-    if (dragId) handleStatusChange(dragId, col);
-    setDragId(null);
-    setDragOverCol(null);
-  };
-
-  const handleDragLeave = () => setDragOverCol(null);
-
-  // ── Filtered / searched tasks ─────────────────────────────
-
-  const visible = tasks.filter(t => {
-    const matchFilter = filter === 'all' || t.status === filter;
-    const matchSearch = !search ||
-      t.title.toLowerCase().includes(search.toLowerCase()) ||
-      t.description.toLowerCase().includes(search.toLowerCase()) ||
-      t.tags.some(tag => tag.toLowerCase().includes(search.toLowerCase()));
-    return matchFilter && matchSearch;
-  });
-
-  // ── Stats ─────────────────────────────────────────────────
-
-  const total   = tasks.length;
-  const done    = tasks.filter(t => t.status === 'done').length;
-  const working = tasks.filter(t => t.status === 'working').length;
-  const pending = tasks.filter(t => t.status === 'pending').length;
-  const progress = total > 0 ? Math.round((done / total) * 100) : 0;
-
-  return (
-    <div className="tasks-screen">
-      {/* ── Header ──────────────────────────────────────── */}
-      <header className="tasks-header">
-        <div className="tasks-header-left">
-          <button className="tasks-back-btn" onClick={onBack} aria-label="Volver">
-            <ArrowLeftIcon />
-          </button>
-          <div>
-            <h1 className="tasks-title">Tareas</h1>
-            <p className="tasks-subtitle">
-              {done} de {total} completadas
-            </p>
-          </div>
-        </div>
-
-        <div className="tasks-header-right">
-          {/* View toggle */}
-          <div className="tasks-view-toggle" role="group" aria-label="Modo de vista">
-            <button
-              className={`tasks-view-btn${view === 'list' ? ' active' : ''}`}
-              onClick={() => setView('list')}
-              title="Vista lista"
-              aria-pressed={view === 'list'}
-            >
-              <ListIcon />
-            </button>
-            <button
-              className={`tasks-view-btn${view === 'kanban' ? ' active' : ''}`}
-              onClick={() => setView('kanban')}
-              title="Vista kanban"
-              aria-pressed={view === 'kanban'}
-            >
-              <KanbanIcon />
-            </button>
-          </div>
-
-          <button
-            className="tasks-new-btn"
-            onClick={() => { setEditTarget(null); setShowForm(true); }}
-          >
-            <PlusIcon />
-            Nueva tarea
-          </button>
-        </div>
-      </header>
-
-      {/* ── Progress bar ───────────────────────────────── */}
-      <div className="tasks-progress-bar-wrapper" aria-label={`Progreso: ${progress}%`}>
-        <div
-          className="tasks-progress-bar-fill"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-
-      {/* ── Stats strip ────────────────────────────────── */}
-      <div className="tasks-stats">
-        <button
-          className={`tasks-stat-pill${filter === 'all' ? ' active' : ''}`}
-          onClick={() => setFilter('all')}
-        >
-          Todas <span>{total}</span>
-        </button>
-        <button
-          className={`tasks-stat-pill${filter === 'pending' ? ' active' : ''}`}
-          onClick={() => setFilter('pending')}
-          style={filter === 'pending' ? { borderColor: STATUS_COLORS['pending'] } : {}}
-        >
-          Por hacer <span style={{ color: STATUS_COLORS['pending'] }}>{pending}</span>
-        </button>
-        <button
-          className={`tasks-stat-pill${filter === 'working' ? ' active' : ''}`}
-          onClick={() => setFilter('working')}
-          style={filter === 'working' ? { borderColor: STATUS_COLORS['working'] } : {}}
-        >
-          En progreso <span style={{ color: STATUS_COLORS['working'] }}>{working}</span>
-        </button>
-        <button
-          className={`tasks-stat-pill${filter === 'done' ? ' active' : ''}`}
-          onClick={() => setFilter('done')}
-          style={filter === 'done' ? { borderColor: STATUS_COLORS['done'] } : {}}
-        >
-          Completadas <span style={{ color: STATUS_COLORS['done'] }}>{done}</span>
-        </button>
-
-        <div className="tasks-search-wrapper">
-          <input
-            className="tasks-search"
-            placeholder="Buscar tareas..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            aria-label="Buscar tareas"
-          />
-        </div>
-      </div>
-
-      {/* ── Main content area ──────────────────────────── */}
-      <main className="tasks-content">
-        {view === 'list' ? (
-          <div className="tasks-list">
-            {visible.length === 0 ? (
-              <div className="tasks-empty-state">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
-                  stroke="var(--text-tertiary)" strokeWidth="1.5" strokeLinecap="round">
-                  <path d="M9 11l3 3L22 4"/>
-                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                </svg>
-                <p>No hay tareas que mostrar.</p>
-                <button
-                  className="tasks-btn-primary"
-                  onClick={() => { setEditTarget(null); setShowForm(true); }}
-                >
-                  Crear primera tarea
-                </button>
-              </div>
-            ) : (
-              visible.map(task => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  onStatusToggle={handleStatusToggle}
-                  onEdit={t => { setEditTarget(t); setShowForm(true); }}
-                  onDelete={handleDelete}
-                />
-              ))
             )}
           </div>
-        ) : (
-          <div className="tasks-kanban">
-            {(['pending', 'working', 'done'] as TaskStatus[]).map(col => (
-              <KanbanColumn
-                key={col}
-                status={col}
-                tasks={tasks.filter(t => t.status === col)}
-                onStatusChange={handleStatusChange}
-                onEdit={t => { setEditTarget(t); setShowForm(true); }}
-                onDelete={handleDelete}
-                dragOverCol={dragOverCol}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                onDragLeave={handleDragLeave}
-                onDragStart={handleDragStart}
-              />
-            ))}
-          </div>
-        )}
-      </main>
+        </main>
+      </div>
 
-      {/* ── Task form modal ─────────────────────────────── */}
-      {showForm && (
+      {/* ─── TASK FORM MODAL ─── */}
+      {formOpen && (
         <TaskForm
-          initial={editTarget ?? undefined}
-          onSave={editTarget ? handleUpdate : handleCreate}
-          onClose={() => { setShowForm(false); setEditTarget(null); }}
+          initial={editingTask ?? { status: defaultStatus }}
+          onSave={editingTask ? handleUpdate : handleCreate}
+          onClose={() => { setFormOpen(false); setEditingTask(undefined); }}
         />
       )}
-    </div>
+    </>
   );
 }
