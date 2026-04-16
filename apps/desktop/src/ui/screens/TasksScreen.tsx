@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   History, FileText, Calendar, CheckSquare, Clock, Archive,
   Trash2, Settings, LogOut, Bell, Plus, X,
-  CheckCircle2, AlertCircle, Loader2,
+  CheckCircle2, AlertCircle,
   LayoutList, LayoutGrid, Search, MoreHorizontal,
   Flag,
 } from 'lucide-react';
@@ -18,7 +18,7 @@ import type { UserProfile } from '../../core/domain/UserProfile';
 
 const STATUS_META: Record<TaskState, { label: string; color: string; bgVar: string; icon: React.ReactNode }> = {
   pending:  { label: 'Pendiente',   color: 'var(--text-tertiary)',  bgVar: 'var(--bg-secondary)',       icon: <CheckSquare size={14} /> },
-  working:  { label: 'En progreso', color: 'var(--accent)',         bgVar: 'var(--accent-light)',        icon: <Loader2 size={14} style={{ animation: 'spin 1.5s linear infinite' }} /> },
+  working:  { label: 'En progreso', color: 'var(--accent)',         bgVar: 'var(--accent-light)',        icon: <Clock size={14} /> },
   done:     { label: 'Completada',  color: 'var(--color-success)',  bgVar: 'rgba(16,185,129,0.08)',     icon: <CheckCircle2 size={14} /> },
 };
 
@@ -329,6 +329,39 @@ function TaskCard({ task, onStateCycle, onEdit, onDelete }: TaskCardProps) {
 }
 
 // ─────────────────────────────────────────────
+// DRAGGABLE CARD WRAPPER
+// ─────────────────────────────────────────────
+
+interface DraggableCardProps {
+  task: Task;
+  onStateCycle: (id: string) => void;
+  onEdit: (task: Task) => void;
+  onDelete: (id: string) => void;
+}
+
+function DraggableCard({ task, onStateCycle, onEdit, onDelete }: DraggableCardProps) {
+  const [isDragging, setIsDragging] = useState(false);
+
+  return (
+    <div
+      draggable
+      onDragStart={e => { e.dataTransfer.setData('taskId', task.id); setIsDragging(true); }}
+      onDragEnd={() => setIsDragging(false)}
+      style={{
+        cursor: isDragging ? 'grabbing' : 'grab',
+        opacity: isDragging ? 0.45 : 1,
+        transform: isDragging ? 'scale(1.02)' : 'scale(1)',
+        transition: 'opacity 0.15s, transform 0.15s',
+        boxShadow: isDragging ? 'var(--shadow-md)' : 'none',
+        borderRadius: '8px',
+      }}
+    >
+      <TaskCard task={task} onStateCycle={onStateCycle} onEdit={onEdit} onDelete={onDelete} />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // KANBAN COLUMN
 // ─────────────────────────────────────────────
 
@@ -392,12 +425,18 @@ function KanbanCol({ state, tasks, onStateCycle, onEdit, onDelete, onDrop, onAdd
         </div>
       ) : (
         tasks.map(task => (
-          <div key={task.id} draggable
-            onDragStart={e => { e.dataTransfer.setData('taskId', task.id); }}
-            style={{ cursor: 'grab' }}>
-            <TaskCard task={task} onStateCycle={onStateCycle} onEdit={onEdit} onDelete={onDelete} />
-          </div>
+          <DraggableCard key={task.id} task={task} onStateCycle={onStateCycle} onEdit={onEdit} onDelete={onDelete} />
         ))
+      )}
+      {/* Drop zone placeholder — visible only when dragging over this column */}
+      {isDragOver && (
+        <div style={{
+          height: '60px', borderRadius: '8px',
+          border: '2px dashed var(--accent)',
+          background: 'var(--accent-light)',
+          opacity: 0.5,
+          flexShrink: 0,
+        }} />
       )}
     </div>
   );
@@ -562,18 +601,12 @@ export function TasksScreen({ user, yjsDoc, onBack, onNavigate }: TasksScreenPro
   const done        = tasks.filter(t => t.state === 'done').length;
   const progressPct = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  // Read current theme from the DOM (managed globally via data-theme)
-  const currentTheme = document.documentElement.getAttribute('data-theme') ?? 'light';
+
 
   // ── RENDER ────────────────────────────────
 
   return (
     <>
-      {/* Keyframes — minimal, no external dep */}
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
-
       <div className="db2-container">
         {/* ─── SIDEBAR (identical pattern to CalendarScreen) ─── */}
         <aside className="db2-sidebar">
