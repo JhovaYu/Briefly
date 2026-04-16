@@ -1,5 +1,6 @@
 /// <reference path="./electron.d.ts" />
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import * as Y from 'yjs';
 import { IdentityManager } from '@tuxnotas/shared';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -36,6 +37,12 @@ function App() {
   const [screen, setScreen] = useState<Screen>(() => {
     return getUserProfile() ? { type: 'dashboard' } : { type: 'profile' };
   });
+
+  // In-memory Y.Doc for the personal task list (no y-indexeddb yet — sufficient for testing)
+  const personalDocRef = useRef<Y.Doc | null>(null);
+  if (!personalDocRef.current) {
+    personalDocRef.current = new Y.Doc();
+  }
 
   const fetchAndSaveProfile = async (uid: string, authUser: any) => {
     const sb = IdentityManager.cloudClient;
@@ -141,7 +148,7 @@ function App() {
   }
 
   if (screen.type === 'tasks') {
-    return <TasksScreen user={userProfile} onBack={handleBack} onNavigate={handleNavigate} />;
+    return <TasksScreen user={userProfile} yjsDoc={personalDocRef.current} onBack={handleBack} onNavigate={handleNavigate} />;
   }
 
   // workspace — fallback (also catches notes/boards/trash while they are placeholders)
