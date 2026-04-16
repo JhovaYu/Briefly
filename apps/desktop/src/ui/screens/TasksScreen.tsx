@@ -41,13 +41,46 @@ function dateInputToTs(s: string): number | undefined {
 }
 
 // ─────────────────────────────────────────────
+// SHARED FORM STYLES  (top-level to avoid recreating on every render)
+// ─────────────────────────────────────────────
+
+const FORM_OVERLAY_STYLE: React.CSSProperties = {
+  position: 'fixed', inset: 0, zIndex: 9999,
+  background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+};
+
+const FORM_MODAL_STYLE: React.CSSProperties = {
+  background: 'var(--bg-modal)', border: '1px solid var(--border-color)',
+  borderRadius: '12px', boxShadow: 'var(--shadow-lg)', width: '480px', maxWidth: '95vw',
+  padding: '28px', display: 'flex', flexDirection: 'column', gap: '18px',
+};
+
+const FORM_LABEL_STYLE: React.CSSProperties = {
+  fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)',
+  textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px',
+};
+
+const FORM_INPUT_STYLE: React.CSSProperties = {
+  width: '100%', padding: '8px 12px', borderRadius: '6px',
+  border: '1px solid var(--border-input)', background: 'var(--bg-input)',
+  color: 'var(--text-primary)', fontSize: '14px', fontFamily: 'var(--font-ui)',
+  outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.15s',
+};
+
+const FORM_SELECT_STYLE: React.CSSProperties = { ...FORM_INPUT_STYLE, cursor: 'pointer' };
+
+// ─────────────────────────────────────────────
 // SCREEN PROPS
 // ─────────────────────────────────────────────
+
+// Shared type for all navigable screens in the app
+type AppScreen = 'dashboard' | 'notes' | 'calendar' | 'tasks' | 'schedule' | 'boards' | 'trash';
 
 interface TasksScreenProps {
   user: UserProfile;
   yjsDoc: Y.Doc;  // The user's personal Y.Doc (IndexedDB-backed)
-  onNavigate: (screen: 'dashboard' | 'notes' | 'calendar' | 'tasks' | 'schedule' | 'boards' | 'trash') => void;
+  onNavigate: (screen: AppScreen) => void;
   onBack: () => void;
 }
 
@@ -94,42 +127,17 @@ function TaskForm({ initial, onSave, onClose }: TaskFormProps) {
     onSave({ text: text.trim(), description: description.trim(), state, priority, tags, dueDateStr });
   };
 
-  const overlayStyle: React.CSSProperties = {
-    position: 'fixed', inset: 0, zIndex: 9999,
-    background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  };
-
-  const modalStyle: React.CSSProperties = {
-    background: 'var(--bg-modal)', border: '1px solid var(--border-color)',
-    borderRadius: '12px', boxShadow: 'var(--shadow-lg)', width: '480px', maxWidth: '95vw',
-    padding: '28px', display: 'flex', flexDirection: 'column', gap: '18px',
-  };
-
-  const labelStyle: React.CSSProperties = {
-    fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)',
-    textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px',
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '8px 12px', borderRadius: '6px',
-    border: '1px solid var(--border-input)', background: 'var(--bg-input)',
-    color: 'var(--text-primary)', fontSize: '14px', fontFamily: 'var(--font-ui)',
-    outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.15s',
-  };
-
-  const selectStyle: React.CSSProperties = { ...inputStyle, cursor: 'pointer' };
-
+  // Styles are defined at module level (FORM_*_STYLE) to avoid object recreation.
   return (
     <motion.div
-      style={overlayStyle}
+      style={FORM_OVERLAY_STYLE}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       onClick={onClose}
     >
       <motion.form
-        style={modalStyle}
+        style={FORM_MODAL_STYLE}
         onSubmit={handleSubmit}
         onClick={e => e.stopPropagation()}
         initial={{ opacity: 0, scale: 0.96 }}
@@ -150,30 +158,30 @@ function TaskForm({ initial, onSave, onClose }: TaskFormProps) {
 
         {/* Title */}
         <div>
-          <label style={labelStyle}>Título *</label>
-          <input ref={textRef} style={inputStyle} value={text} onChange={e => setText(e.target.value)} placeholder="¿Qué hay que hacer?" />
+          <label style={FORM_LABEL_STYLE}>Título *</label>
+          <input ref={textRef} style={FORM_INPUT_STYLE} value={text} onChange={e => setText(e.target.value)} placeholder="¿Qué hay que hacer?" />
         </div>
 
         {/* Description */}
         <div>
-          <label style={labelStyle}>Descripción</label>
-          <textarea style={{ ...inputStyle, minHeight: '72px', resize: 'vertical' } as React.CSSProperties}
+          <label style={FORM_LABEL_STYLE}>Descripción</label>
+          <textarea style={{ ...FORM_INPUT_STYLE, minHeight: '72px', resize: 'vertical' } as React.CSSProperties}
             value={description} onChange={e => setDescription(e.target.value)} placeholder="Detalles opcionales..." />
         </div>
 
         {/* Row: State + Priority */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
           <div>
-            <label style={labelStyle}>Estado</label>
-            <select style={selectStyle} value={state} onChange={e => setState(e.target.value as TaskState)}>
+            <label style={FORM_LABEL_STYLE}>Estado</label>
+            <select style={FORM_SELECT_STYLE} value={state} onChange={e => setState(e.target.value as TaskState)}>
               <option value="pending">Pendiente</option>
               <option value="working">En progreso</option>
               <option value="done">Completada</option>
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Prioridad</label>
-            <select style={selectStyle} value={priority} onChange={e => setPriority(e.target.value as TaskPriority)}>
+            <label style={FORM_LABEL_STYLE}>Prioridad</label>
+            <select style={FORM_SELECT_STYLE} value={priority} onChange={e => setPriority(e.target.value as TaskPriority)}>
               <option value="low">Baja</option>
               <option value="medium">Media</option>
               <option value="high">Alta</option>
@@ -183,13 +191,13 @@ function TaskForm({ initial, onSave, onClose }: TaskFormProps) {
 
         {/* Due Date */}
         <div>
-          <label style={labelStyle}>Fecha límite</label>
-          <input type="date" style={inputStyle} value={dueDateStr} onChange={e => setDueDateStr(e.target.value)} />
+          <label style={FORM_LABEL_STYLE}>Fecha límite</label>
+          <input type="date" style={FORM_INPUT_STYLE} value={dueDateStr} onChange={e => setDueDateStr(e.target.value)} />
         </div>
 
         {/* Tags */}
         <div>
-          <label style={labelStyle}>Etiquetas (Enter para añadir)</label>
+          <label style={FORM_LABEL_STYLE}>Etiquetas (Enter para añadir)</label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
             {tags.map(t => (
               <span key={t} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '20px', background: 'var(--accent-light)', color: 'var(--accent)', fontSize: '12px', fontWeight: 500 }}>
@@ -201,7 +209,7 @@ function TaskForm({ initial, onSave, onClose }: TaskFormProps) {
               </span>
             ))}
           </div>
-          <input style={inputStyle} value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={handleAddTag} placeholder="ej: frontend, urgente" />
+          <input style={FORM_INPUT_STYLE} value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={handleAddTag} placeholder="ej: frontend, urgente" />
         </div>
 
         {/* Actions */}
@@ -352,33 +360,87 @@ function TaskCard({ task, onStateCycle, onEdit, onDelete, onInlineRename }: Task
 
       {/* Context menu — hidden while inline editing */}
       {!isEditing && (
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          <button
-            onClick={() => setMenuOpen(v => !v)}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: '4px', borderRadius: '4px', display: 'flex' }}>
-            <MoreHorizontal size={16} />
-          </button>
-          {menuOpen && (
-            <div style={{
-              position: 'absolute', right: 0, top: '100%', marginTop: '4px', zIndex: 100,
-              background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px',
-              boxShadow: 'var(--shadow-md)', minWidth: '140px', padding: '4px', animation: 'fadeIn 100ms ease',
-            }}>
-              <button onClick={() => { onEdit(task); setMenuOpen(false); }}
-                style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: '7px 12px', textAlign: 'left', fontSize: '13px', color: 'var(--text-primary)', borderRadius: '5px', fontFamily: 'var(--font-ui)' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-              >Editar</button>
-              <button onClick={() => { onDelete(task.id); setMenuOpen(false); }}
-                style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: '7px 12px', textAlign: 'left', fontSize: '13px', color: 'var(--color-error)', borderRadius: '5px', fontFamily: 'var(--font-ui)' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.06)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-              >Eliminar</button>
-            </div>
-          )}
-        </div>
+        <ContextMenu
+          task={task}
+          menuOpen={menuOpen}
+          setMenuOpen={setMenuOpen}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       )}
     </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// CONTEXT MENU  (extracted to isolate hover state + outside-click logic)
+// ─────────────────────────────────────────────
+
+interface ContextMenuProps {
+  task: Task;
+  menuOpen: boolean;
+  setMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  onEdit: (task: Task) => void;
+  onDelete: (id: string) => void;
+}
+
+function ContextMenu({ task, menuOpen, setMenuOpen, onEdit, onDelete }: ContextMenuProps) {
+  const menuRef                       = useRef<HTMLDivElement>(null);
+  const [hoverEdit, setHoverEdit]     = useState(false);
+  const [hoverDelete, setHoverDelete] = useState(false);
+
+  // Close when the user clicks outside the menu container
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
+  }, [menuOpen, setMenuOpen]);
+
+  return (
+    <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
+      <button
+        onClick={() => setMenuOpen(v => !v)}
+        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: '4px', borderRadius: '4px', display: 'flex' }}
+      >
+        <MoreHorizontal size={16} />
+      </button>
+      {menuOpen && (
+        <div style={{
+          position: 'absolute', right: 0, top: '100%', marginTop: '4px', zIndex: 100,
+          background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px',
+          boxShadow: 'var(--shadow-md)', minWidth: '140px', padding: '4px', animation: 'fadeIn 100ms ease',
+        }}>
+          {/* useState hover avoids direct DOM mutation (anti-pattern) */}
+          <button
+            onClick={() => { onEdit(task); setMenuOpen(false); }}
+            onMouseEnter={() => setHoverEdit(true)}
+            onMouseLeave={() => setHoverEdit(false)}
+            style={{
+              width: '100%', background: hoverEdit ? 'var(--bg-hover)' : 'transparent',
+              border: 'none', cursor: 'pointer', padding: '7px 12px', textAlign: 'left',
+              fontSize: '13px', color: 'var(--text-primary)', borderRadius: '5px',
+              fontFamily: 'var(--font-ui)', transition: 'background 0.1s',
+            }}
+          >Editar</button>
+          <button
+            onClick={() => { onDelete(task.id); setMenuOpen(false); }}
+            onMouseEnter={() => setHoverDelete(true)}
+            onMouseLeave={() => setHoverDelete(false)}
+            style={{
+              width: '100%', background: hoverDelete ? 'rgba(239,68,68,0.06)' : 'transparent',
+              border: 'none', cursor: 'pointer', padding: '7px 12px', textAlign: 'left',
+              fontSize: '13px', color: 'var(--color-error)', borderRadius: '5px',
+              fontFamily: 'var(--font-ui)', transition: 'background 0.1s',
+            }}
+          >Eliminar</button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -433,7 +495,8 @@ interface KanbanColProps {
 
 function KanbanCol({ state, tasks, onStateCycle, onEdit, onDelete, onDrop, onAddQuick, onInlineRename }: KanbanColProps) {
   const meta = STATUS_META[state];
-  const [isDragOver, setIsDragOver] = useState(false);
+  const [isDragOver, setIsDragOver]       = useState(false);
+  const [hoverAddBtn, setHoverAddBtn]     = useState(false); // hover state replaces inline DOM mutation
 
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true); };
   const handleDragLeave = () => setIsDragOver(false);
@@ -464,9 +527,13 @@ function KanbanCol({ state, tasks, onStateCycle, onEdit, onDelete, onDrop, onAdd
           </span>
         </div>
         <button onClick={() => onAddQuick(state)}
-          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: '3px', borderRadius: '4px', display: 'flex' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent)'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-tertiary)'; }}
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            color: hoverAddBtn ? 'var(--accent)' : 'var(--text-tertiary)',
+            padding: '3px', borderRadius: '4px', display: 'flex', transition: 'color 0.1s',
+          }}
+          onMouseEnter={() => setHoverAddBtn(true)}
+          onMouseLeave={() => setHoverAddBtn(false)}
           title="Añadir tarea"
         >
           <Plus size={16} />
@@ -559,8 +626,9 @@ export function TasksScreen({ user, yjsDoc, onBack, onNavigate }: TasksScreenPro
       dateInputToTs(data.dueDateStr),
     );
 
-    // TODO Fase 2: extender TaskService.addTask() para aceptar priority, tags y state directamente
-    // Por ahora, encontramos la tarea recién creada (la más nueva) y hacemos un segundo write
+    // DEBT(tasks): TaskService.addTask() no acepta priority/tags/state/description.
+    //              Se hace un segundo updateTask() como workaround.
+    //              Resolver cuando se refactorice TaskService en Fase 2.
     const all = serviceRef.current.getTasks(personalListId);
     const created = all.sort((a, b) => b.createdAt - a.createdAt)[0];
     if (created && (data.priority || data.tags.length || data.state !== 'pending' || data.description)) {
