@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import * as Y from 'yjs';
 import { IdentityManager } from '@tuxnotas/shared';
+import { YjsIndexedDBAdapter } from './infrastructure/persistence/IndexedDBAdapter';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -43,6 +44,14 @@ function App() {
   if (!personalDocRef.current) {
     personalDocRef.current = new Y.Doc();
   }
+
+  useEffect(() => {
+    if (!personalDocRef.current) return;
+    const adapter = new YjsIndexedDBAdapter(personalDocRef.current);
+    adapter.initialize('briefly-personal-doc').then(() => {
+      console.log('Personal doc persistence initialized');
+    });
+  }, []);
 
   const fetchAndSaveProfile = async (uid: string, authUser: any) => {
     const sb = IdentityManager.cloudClient;

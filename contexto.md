@@ -202,8 +202,8 @@ type Screen =
   | { type: 'workspace'; poolId: string; poolName: string; signalingUrl?: string }
   | { type: 'calendar' }    // CalendarScreen ✅
   | { type: 'schedule' }    // ScheduleScreen ✅
+  | { type: 'tasks' }       // TasksScreen ✅
   | { type: 'notes' }       // ⚠️ PLACEHOLDER — por implementar
-  | { type: 'tasks' }       // ⚠️ PLACEHOLDER — por implementar
   | { type: 'boards' }      // ⚠️ PLACEHOLDER — por implementar
   | { type: 'trash' }       // ⚠️ PLACEHOLDER — por implementar
 ```
@@ -275,6 +275,7 @@ Conexiones ICE/STUN directas entre pares
 | Editor P2P | `PoolWorkspace.tsx` | ~29KB | ✅ Operativo |
 | Calendario | `CalendarScreen.tsx` | ~19KB | ✅ Entregado al profesor |
 | Horario Semanal | `ScheduleScreen.tsx` | ~38KB | ✅ Operativo |
+| Tareas | `TasksScreen.tsx` | ~1000 líneas | ✅ Operativo (Lista/Kanban, P2P, IndexedDB) |
 
 ---
 
@@ -302,7 +303,7 @@ Conexiones ICE/STUN directas entre pares
 ## Pendientes Técnicos
 
 - [ ] Redesign `ProfileSetup` + `HomeDashboard` (TRABAJO ACTIVO)
-- [ ] Implementar screens: `notes`, `tasks`, `boards`, `trash`.
+- [ ] Implementar screens: `notes`, `boards`, `trash`.
 - [ ] Deploy Signaling Server en AWS (requisito infraestructura para deploy total).
 - [ ] Conectar `jszip` → Export Service (microservicio #5).
 - [ ] Conectar `react-force-graph-2d` para una visualización al estilo de Obsidian Graph.
@@ -312,3 +313,4 @@ Conexiones ICE/STUN directas entre pares
 - [ ] Notificaciones nativas Electron/Mobile en Desktop Push.
 - [ ] **Feedback Profesor:** Revisitar el Dashboard final agregando un carácter visual extra (iconografía, gráficos circulares estilo Notion/stats).
 - [ ] App Mobile: Pulir el Workspace (`[poolId].tsx`).
+- [ ] Deuda Técnica: Refactorizar TasksScreen.tsx (monolito de 1000 líneas) dividiéndolo en componentes más pequeños dentro de ui/components/tasks/.
