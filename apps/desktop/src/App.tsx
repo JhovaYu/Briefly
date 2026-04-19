@@ -140,6 +140,7 @@ function App() {
     return (
       <HomeDashboard
         user={userProfile}
+        yjsDoc={personalDocRef.current!}
         onOpenPool={handleOpenPool}
         onLogout={handleLogout}
         onOpenCalendar={() => setScreen({ type: 'calendar' })}

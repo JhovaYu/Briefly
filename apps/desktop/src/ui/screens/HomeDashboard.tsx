@@ -10,10 +10,11 @@ import {
 } from '../../core/domain/UserProfile';
 import { useSettings, SettingsModal } from '../components/SettingsModal';
 import { NotificationsModal } from '../components/NotificationsModal';
-import { Sidebar } from '../components/Sidebar';
-
-export function HomeDashboard({ user, onOpenPool, onLogout, onOpenCalendar, onNavigate }: {
+import * as Y from 'yjs';
+import { TaskService, type Task } from '@tuxnotas/shared';
+export function HomeDashboard({ user, yjsDoc, onOpenPool, onLogout, onOpenCalendar, onNavigate }: {
   user: UserProfile;
+  yjsDoc: Y.Doc;
   onOpenPool: (poolId: string, name: string, signalingUrl?: string) => void;
   onLogout: () => void;
   onOpenCalendar: () => void;
@@ -30,10 +31,52 @@ export function HomeDashboard({ user, onOpenPool, onLogout, onOpenCalendar, onNa
   const [showSettings, setShowSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
+  const [upcomingTasks, setUpcomingTasks] = useState<Task[]>([]);
+  const [nextEvents, setNextEvents] = useState<any[]>([]);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('fluent-theme', theme);
   }, [theme]);
+
+  // Sincronización de Tareas P2P
+  useEffect(() => {
+    const svc = new TaskService(yjsDoc);
+    const tasksMap = yjsDoc.getMap<Task>('tasks');
+
+    const refreshTasks = () => {
+      const existingLists = svc.getTaskLists(user.id);
+      if (existingLists.length > 0) {
+        const listId = existingLists[0].id;
+        const allTasks = svc.getTasks(listId);
+        setUpcomingTasks(allTasks.filter(t => t.state !== 'done').slice(0, 5));
+      }
+    };
+
+    refreshTasks();
+    tasksMap.observe(refreshTasks);
+    return () => tasksMap.unobserve(refreshTasks);
+  }, [yjsDoc, user.id]);
+
+  // Lectura de Horarios desde LocalStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('briefly-schedule-events');
+      if (saved) {
+        const allEvents = JSON.parse(saved);
+        const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const today = days[new Date().getDay()];
+        
+        const todayEvents = allEvents
+          .filter((e: any) => e.day === today)
+          .sort((a: any, b: any) => a.startHour - b.startHour);
+        
+        setNextEvents(todayEvents.slice(0, 4));
+      }
+    } catch (e) {
+      console.error('Error al cargar horarios para el Dashboard', e);
+    }
+  }, []);
 
   const handleCreate = async () => {
     let signalingIp = 'localhost';
@@ -122,17 +165,54 @@ export function HomeDashboard({ user, onOpenPool, onLogout, onOpenCalendar, onNa
   return (
     <div className="db2-container">
       {/* SIDEBAR */}
-      <Sidebar 
-        user={user}
-        currentScreen="dashboard"
-        onNavigate={onNavigate}
-        onLogout={onLogout}
-        theme={theme}
-        onToggleTheme={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
-        onOpenSettings={() => setShowSettings(true)}
-        onOpenNotifications={() => setShowNotifications(true)}
-        onNewNote={() => setCreating(!creating)}
-      />
+      <aside className="db2-sidebar">
+        <div className="db2-brand">
+          <div className="db2-logo" style={{ background: 'transparent' }}>
+            <img src="./logo.png" alt="Briefly Logo" style={{ width: 26, height: 26, objectFit: 'contain' }} />
+          </div>
+          <div className="db2-brand-text">
+            <h2>Briefly</h2>
+            <span>Estudio Personal</span>
+          </div>
+        </div>
+
+        <div className="db2-new-btn-wrapper">
+          <button className="db2-btn-primary" onClick={() => setCreating(!creating)}>
+            <Plus size={16} /> Nueva Nota
+          </button>
+        </div>
+
+        <nav className="db2-nav">
+          <button className="db2-nav-item active"><History size={16} /> Dashboard</button>
+          <button className="db2-nav-item"><FileText size={16} /> Notas</button>
+          <button className="db2-nav-item" onClick={onOpenCalendar}><Calendar size={16} /> Calendario</button>
+          <button className="db2-nav-item"><CheckSquare size={16} /> Tareas</button>
+          <button className="db2-nav-item" onClick={() => onNavigate('schedule')}><Clock size={16} /> Horario</button>
+          <button className="db2-nav-item"><Archive size={16} /> Tableros</button>
+          <button className="db2-nav-item"><Trash2 size={16} /> Papelera</button>
+        </nav>
+
+        <div className="db2-bottom-nav">
+          <div className="db2-user-profile">
+            <div className="db2-user-avatar2" style={{ background: user.color }}>
+              {user.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="db2-user-name2" title={user.name}>
+              {user.name}
+            </div>
+            <button className="db2-user-icon-btn" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Cambiar tema">
+              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
+            <button className="db2-user-icon-btn" onClick={() => setShowNotifications(true)} title="Notificaciones">
+              <Bell size={18} />
+            </button>
+          </div>
+          <div className="db2-bottom-divider"></div>
+
+          <button className="db2-nav-item" onClick={() => setShowSettings(true)}><Settings size={16} /> Ajustes</button>
+          <button className="db2-nav-item" onClick={onLogout}><LogOut size={16} /> Cerrar sesión</button>
+        </div>
+      </aside>
 
       {/* MAIN */}
       <main className="db2-main">
@@ -196,57 +276,106 @@ export function HomeDashboard({ user, onOpenPool, onLogout, onOpenCalendar, onNa
                 <h3>Horarios</h3>
               </div>
               <div className="db2-horarios-grid">
-                {/* Mocked Cards reproducing design */}
-                <div className="db2-horario-card">
-                  <div className="db2-icon-badge pink"><Activity size={12} /></div>
-                  <h4>Matemáticas</h4>
-                  <p>Principios fundamentales de UX para interfaces móviles de alta fidelidad...</p>
-                  <div className="db2-time"><Clock size={12} /> EN 1:34 HORAS</div>
-                </div>
-                <div className="db2-horario-card">
-                  <div className="db2-icon-badge blue"><Activity size={12} /></div>
-                  <h4>Interfaces Humano-Computador...</h4>
-                  <p>Normalización de bases de datos relacionales y optimización de queries...</p>
-                  <div className="db2-time"><Clock size={12} /> EN 21 MINUTOS</div>
-                </div>
-                <div className="db2-horario-card">
-                  <div className="db2-icon-badge blue"><Activity size={12} /></div>
-                  <h4>Sistemas Distribuidos</h4>
-                  <p>Implementación de P2P y arquitecturas de sincronización local...</p>
-                  <div className="db2-time"><Clock size={12} /> MAÑANA</div>
-                </div>
-                <div className="db2-horario-card">
-                  <div className="db2-icon-badge blue"><Activity size={12} /></div>
-                  <h4>Interfaces Humano-Computador...</h4>
-                  <p>Normalización de bases de datos relacionales y optimización de queries...</p>
-                  <div className="db2-time"><Clock size={12} /> EN 21 MINUTOS</div>
-                </div>
+                {nextEvents.length === 0 ? (
+                  /* Placeholder when there are no events */
+                  <div className="db2-horario-card" style={{ opacity: 0.6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <Calendar size={24} style={{ marginBottom: 8, opacity: 0.5 }} />
+                      <h4 style={{ margin: 0 }}>Día libre</h4>
+                    </div>
+                  </div>
+                ) : (
+                  nextEvents.map(evt => (
+                    <div key={evt.id} className="db2-horario-card" style={{ borderRadius: '12px' }}>
+                      <div className="db2-icon-badge" style={{ backgroundColor: evt.color || 'var(--accent)' }}>
+                        <Activity size={12} />
+                      </div>
+                      <h4 style={{ marginTop: '12px' }}>{evt.title}</h4>
+                      <div className="db2-time">
+                        <Clock size={12} /> {evt.startHour}:00 - {evt.endHour}:00
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
-              <div className="db2-section-header" style={{ marginTop: '30px' }}>
-                <h3><Clock size={14} /> Notas recientes</h3>
-              </div>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '65% 35%', 
+                gap: '24px', 
+                marginTop: '24px' 
+              }}>
+                {/* LADO IZQUIERDO: Notas recientes */}
+                <div className="db2-recent-column">
+                  <div className="db2-section-header">
+                    <h3><History size={14} /> Notas recientes</h3>
+                  </div>
+                  <div className="db2-recent-list" style={{ borderRadius: '12px' }}>
+                    <div className="db2-recent-row">
+                      <FileText size={16} />
+                      <div className="db2-recent-info">
+                        <strong>Briefing Cliente - Web 3.0</strong>
+                        <span>Modificado hace 15 minutos</span>
+                      </div>
+                    </div>
+                    <div className="db2-recent-row">
+                      <FileText size={16} />
+                      <div className="db2-recent-info">
+                        <strong>Componentes de Diseño Atómico</strong>
+                        <span>Modificado hace 1 hora</span>
+                      </div>
+                    </div>
+                    <div className="db2-recent-row">
+                      <FileText size={16} />
+                      <div className="db2-recent-info">
+                        <strong>Notas Reunión QA</strong>
+                        <span>Modificado hace 1 día</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-              <div className="db2-recent-list">
-                <div className="db2-recent-row">
-                  <FileText size={16} />
-                  <div className="db2-recent-info">
-                    <strong>Briefing Cliente - Web 3.0</strong>
-                    <span>Modificado hace 15 minutos</span>
+                {/* LADO DERECHO: Tareas Próximas (Recuadro Rojo) */}
+                <div className="db2-tasks-column">
+                  <div className="db2-section-header">
+                    <h3 style={{ fontWeight: 600, fontSize: '13px' }}>Tareas Próximas</h3>
+                    <span className="db2-link" onClick={() => onNavigate('tasks')}>Ver todas</span>
                   </div>
-                </div>
-                <div className="db2-recent-row">
-                  <FileText size={16} />
-                  <div className="db2-recent-info">
-                    <strong>Componentes de Diseño Atómico</strong>
-                    <span>Modificado hace 1 hora</span>
-                  </div>
-                </div>
-                <div className="db2-recent-row">
-                  <FileText size={16} />
-                  <div className="db2-recent-info">
-                    <strong>Notas Reunión QA</strong>
-                    <span>Modificado hace 1 día</span>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {upcomingTasks.length === 0 ? (
+                      <div style={{ 
+                        border: '1px dashed var(--border-color)', 
+                        borderRadius: '12px', 
+                        padding: '20px', 
+                        textAlign: 'center',
+                        color: 'var(--text-tertiary)',
+                        fontSize: '12px'
+                      }}>
+                        Sin tareas pendientes
+                      </div>
+                    ) : (
+                      upcomingTasks.map(task => (
+                        <div key={task.id} style={{ 
+                          background: 'var(--bg-card)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '12px',
+                          padding: '10px 14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          fontSize: '13px',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => onNavigate('tasks')}
+                        >
+                          <CheckSquare size={14} color="var(--accent)" />
+                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {task.text}
+                          </span>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
