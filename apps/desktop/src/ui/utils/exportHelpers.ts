@@ -79,17 +79,20 @@ export async function exportNoteToService(doc: any, note: Note, serviceUrl: stri
     content
   };
 
+  const apiKey = import.meta.env.VITE_EXPORT_API_KEY || 'briefly-secret-key';
+
   try {
     const res = await fetch(serviceUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
       },
       body: JSON.stringify(payload)
     });
 
     if (!res.ok) {
-      throw new Error(`Error en el servicio: ${res.statusText}`);
+      throw new Error(`Error en el servicio: ${res.status} ${res.statusText}`);
     }
 
     const blob = await res.blob();

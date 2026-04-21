@@ -15,7 +15,9 @@ export function getUserProfile(): UserProfile | null {
 }
 
 export function saveUserProfile(profile: UserProfile): void {
-    localStorage.setItem('fluent-user-profile', JSON.stringify(profile));
+  // seedPhrase NUNCA se persiste en localStorage — solo existe en memoria durante la sesión
+  const { seedPhrase: _omitted, ...safeProfile } = profile;
+  localStorage.setItem('fluent-user-profile', JSON.stringify(safeProfile));
 }
 
 // Helper: get/set pool list from localStorage

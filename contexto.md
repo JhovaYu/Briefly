@@ -302,23 +302,26 @@ Conexiones ICE/STUN directas entre pares
 
 ## Microservicios (Requisito Académico — mínimo 5)
 
-El proyecto implementa 5 microservicios. Los primeros 3 operan vía Supabase (BaaS).
-El Signaling Service corre en AWS. El Export Service está pendiente de implementar
-como microservicio HTTP independiente (Node.js/Express) containerizado con Docker.
+El proyecto implementa **6 microservicios** diferenciados. Los primeros 3 operan vía Supabase (BaaS).
+El Signaling Service corre en Railway. El Export Service y el Link Preview Service son microservicios
+HTTP independientes containerizados con Docker, con autenticación por API key.
 
 | # | Servicio | Tecnología | Estado |
 |---|---|---|---|
 | 1 | Auth Service | Supabase Auth (email + Google OAuth) | ✅ Operativo |
 | 2 | Profile Service | Supabase tabla `profiles` | ✅ Operativo |
 | 3 | Pool Registry Service | Supabase tabla `user_pools` | ✅ Operativo |
-| 4 | Signaling Service | y-webrtc server — AWS EC2 | 🔧 Pendiente deploy |
-| 5 | Export Service | Node.js/Express + jszip — Docker | ⏳ Pendiente implementar |
+| 4 | Signaling Service | y-webrtc server — Railway | ✅ Operativo |
+| 5 | Export Service | Node.js/Express + PDFKit — Docker — AWS EC2 | ✅ Operativo (con auth API key) |
+| 6 | Link Preview Service | Node.js/Express + Cheerio — Docker | ✅ Implementado (pendiente deploy) |
 
-> **Nota**: Los microservicios 1-3 son fachadas BaaS sobre Supabase. El microservicio 5
-> (Export Service) cuando se implemente expondrá endpoints HTTP independientes en su propio
-> contenedor Docker, alineándose con el planteamiento académico original de microservicios
-> con endpoints REST separados. La lógica jszip actual en `exportHelpers.ts` es la base
-> funcional que migrará a ese servicio.
+> **Seguridad**: Los microservicios 5 y 6 requieren el header `x-api-key` en todos los endpoints
+> protegidos. El health check (`GET /health`) es público. La clave se configura via variable de
+> entorno `EXPORT_API_KEY` / `PREVIEW_API_KEY`.
+>
+> **Estructura Link Preview Service**: `apps/link-preview-service/` — `GET /api/v1/preview?url=...`
+> Extrae og:title, og:description, og:image (con fallback a `<title>` y `<meta name="description">`).
+> Puerto 3001. Build TypeScript compila sin errores.
 
 ---
 
