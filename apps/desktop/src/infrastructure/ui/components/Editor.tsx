@@ -36,6 +36,8 @@ import {
     Rows,
     SlidersHorizontal,
     Maximize2,
+    Wand2,
+    Loader2,
 } from 'lucide-react';
 
 interface EditorProps {
@@ -139,6 +141,117 @@ function TableContextMenu({
     );
 }
 
+// ─── Analysis Data Types ───
+interface StatsData {
+    wordCount: number;
+    charCount: number;
+    readingTimeMinutes: number;
+}
+
+interface AnalysisData {
+    stats: StatsData;
+    summary: string;
+}
+
+// ─── Analysis Popover ───
+function AnalysisPopover({
+    isAnalyzing,
+    data,
+    error,
+    onClose,
+    anchorRect,
+}: {
+    isAnalyzing: boolean;
+    data: AnalysisData | null;
+    error: string | null;
+    onClose: () => void;
+    anchorRect: DOMRect | null;
+}) {
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const onClick = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+        };
+        setTimeout(() => document.addEventListener('mousedown', onClick), 0);
+        return () => document.removeEventListener('mousedown', onClick);
+    }, [onClose]);
+
+    if (!anchorRect) return null;
+
+    const style: React.CSSProperties = {
+        position: 'fixed',
+        top: anchorRect.bottom + 8,
+        // Ancla a la derecha del botón, max 340px de ancho
+        right: Math.max(8, window.innerWidth - anchorRect.right),
+        zIndex: 9999,
+        width: 340,
+    };
+
+    return createPortal(
+        <div ref={ref} className="margin-popover" style={style}>
+            <div className="margin-popover-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Wand2 size={14} />
+                Análisis con IA
+            </div>
+
+            {/* Estado: cargando */}
+            {isAnalyzing && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '20px 0' }}>
+                    <Loader2 size={22} style={{ animation: 'spin 1s linear infinite', color: 'var(--accent)' }} />
+                    <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Analizando con Gemini...</span>
+                </div>
+            )}
+
+            {/* Estado: error */}
+            {!isAnalyzing && error && (
+                <p style={{ fontSize: 12, color: 'var(--color-error)', margin: '12px 0 0', lineHeight: 1.5 }}>
+                    {error}
+                </p>
+            )}
+
+            {/* Estado: datos listos */}
+            {!isAnalyzing && data && (
+                <>
+                    {/* Estadísticas */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, margin: '12px 0' }}>
+                        {([
+                            { label: 'Palabras', value: data.stats.wordCount },
+                            { label: 'Caracteres', value: data.stats.charCount },
+                            { label: 'Lectura', value: `${data.stats.readingTimeMinutes} min` },
+                        ] as { label: string; value: string | number }[]).map(({ label, value }) => (
+                            <div key={label} style={{
+                                background: 'var(--bg-secondary)',
+                                borderRadius: 8, padding: '8px 10px',
+                                textAlign: 'center',
+                            }}>
+                                <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+                                    {value}
+                                </p>
+                                <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                    {label}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Separador */}
+                    <div style={{ height: 1, background: 'var(--border-color)', margin: '4px 0 10px' }} />
+
+                    {/* Resumen IA */}
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                        Resumen IA
+                    </p>
+                    <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                        {data.summary}
+                    </p>
+                </>
+            )}
+        </div>,
+        document.body
+    );
+}
+
 // ─── Margin Settings Popover ───
 function MarginPopover({
     margin,
@@ -207,6 +320,13 @@ export const Editor = ({ doc, provider, user, noteId, noteTitle, onTitleChange }
     const [tableMenu, setTableMenu] = useState<TableMenuState>({ visible: false, x: 0, y: 0 });
     const [showMarginPopover, setShowMarginPopover] = useState(false);
     const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
+
+    // ─── AI Analysis state ───
+    const [showAnalysis, setShowAnalysis] = useState(false);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
+    const [analysisError, setAnalysisError] = useState<string | null>(null);
+    const [analysisAnchorRect, setAnalysisAnchorRect] = useState<DOMRect | null>(null);
 
     // ─── Persistent margin state (localStorage) ───
     const [marginPercent, setMarginPercent] = useState<number>(() => {
@@ -405,6 +525,7 @@ export const Editor = ({ doc, provider, user, noteId, noteTitle, onTitleChange }
                         onClick={(e) => {
                             setAnchorRect(e.currentTarget.getBoundingClientRect());
                             setShowMarginPopover(!showMarginPopover);
+                            setShowAnalysis(false);
                         }}
                     >
                         <SlidersHorizontal />
@@ -416,6 +537,78 @@ export const Editor = ({ doc, provider, user, noteId, noteTitle, onTitleChange }
                             onFullWidth={() => { setMarginPercent(0); setShowMarginPopover(false); }}
                             onClose={() => setShowMarginPopover(false)}
                             anchorRect={anchorRect}
+                        />
+                    )}
+                </div>
+
+                {/* AI Analysis button */}
+                <div style={{ position: 'relative' }}>
+                    <button
+                        className={`toolbar-btn ${showAnalysis ? 'is-active' : ''}`}
+                        title="Analizar con IA"
+                        type="button"
+                        tabIndex={-1}
+                        onClick={async (e) => {
+                            const text = editor.getText().trim();
+                            if (!text) return;
+
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setAnalysisAnchorRect(rect);
+                            setShowMarginPopover(false);
+
+                            // Toggle: si ya estaba abierto con datos, cierra
+                            if (showAnalysis) {
+                                setShowAnalysis(false);
+                                return;
+                            }
+
+                            setShowAnalysis(true);
+                            setIsAnalyzing(true);
+                            setAnalysisData(null);
+                            setAnalysisError(null);
+
+                            const statsUrl = import.meta.env.VITE_STATS_SERVICE_URL || 'http://localhost:8082';
+                            const summaryUrl = import.meta.env.VITE_SUMMARY_SERVICE_URL || 'http://localhost:8083';
+                            const apiKey = import.meta.env.VITE_API_KEY || 'briefly-secret-key';
+
+                            const headers = {
+                                'Content-Type': 'application/json',
+                                'x-api-key': apiKey,
+                            };
+                            const body = JSON.stringify({ text });
+
+                            try {
+                                const [statsRes, summaryRes] = await Promise.all([
+                                    fetch(`${statsUrl}/api/v1/stats`, { method: 'POST', headers, body }),
+                                    fetch(`${summaryUrl}/api/v1/summary`, { method: 'POST', headers, body }),
+                                ]);
+
+                                if (!statsRes.ok) throw new Error(`Stats service: HTTP ${statsRes.status}`);
+                                if (!summaryRes.ok) throw new Error(`Summary service: HTTP ${summaryRes.status}`);
+
+                                const [stats, summaryData] = await Promise.all([
+                                    statsRes.json() as Promise<StatsData>,
+                                    summaryRes.json() as Promise<{ summary: string }>,
+                                ]);
+
+                                setAnalysisData({ stats, summary: summaryData.summary });
+                            } catch (err: unknown) {
+                                const msg = err instanceof Error ? err.message : 'Error desconocido';
+                                setAnalysisError(`No se pudo completar el análisis. Verifica que los servicios estén activos.\n${msg}`);
+                            } finally {
+                                setIsAnalyzing(false);
+                            }
+                        }}
+                    >
+                        <Wand2 />
+                    </button>
+                    {showAnalysis && (
+                        <AnalysisPopover
+                            isAnalyzing={isAnalyzing}
+                            data={analysisData}
+                            error={analysisError}
+                            onClose={() => setShowAnalysis(false)}
+                            anchorRect={analysisAnchorRect}
                         />
                     )}
                 </div>
