@@ -302,26 +302,28 @@ Conexiones ICE/STUN directas entre pares
 
 ## Microservicios (Requisito Académico — mínimo 5)
 
-El proyecto implementa **6 microservicios** diferenciados. Los primeros 3 operan vía Supabase (BaaS).
-El Signaling Service corre en Railway. El Export Service y el Link Preview Service son microservicios
-HTTP independientes containerizados con Docker, con autenticación por API key.
+El proyecto implementa **9 microservicios** diferenciados. Los primeros 3 operan vía Supabase (BaaS).
+Los 6 restantes son microservicios HTTP independientes con Express/TypeScript, containerizados con Docker,
+y protegidos por header `x-api-key`.
 
-| # | Servicio | Tecnología | Estado |
-|---|---|---|---|
-| 1 | Auth Service | Supabase Auth (email + Google OAuth) | ✅ Operativo |
-| 2 | Profile Service | Supabase tabla `profiles` | ✅ Operativo |
-| 3 | Pool Registry Service | Supabase tabla `user_pools` | ✅ Operativo |
-| 4 | Signaling Service | y-webrtc server — Railway | ✅ Operativo |
-| 5 | Export Service | Node.js/Express + PDFKit — Docker — AWS EC2 | ✅ Operativo (con auth API key) |
-| 6 | Link Preview Service | Node.js/Express + Cheerio — Docker | ✅ Implementado (pendiente deploy) |
+| # | Servicio | Puerto | Tecnología | Estado |
+|---|---|---|---|---|
+| 1 | Auth Service | — | Supabase Auth (email + Google OAuth) | ✅ Operativo |
+| 2 | Profile Service | — | Supabase tabla `profiles` | ✅ Operativo |
+| 3 | Pool Registry Service | — | Supabase tabla `user_pools` | ✅ Operativo |
+| 4 | Signaling Service | — | y-webrtc server — Railway | ✅ Operativo |
+| 5 | Export Service | 3000 | Express + PDFKit — Docker — AWS EC2 | ✅ Operativo |
+| 6 | Link Preview Service | 3001 | Express + Cheerio — Docker | ✅ Build OK (pendiente deploy) |
+| 7 | QR Service | 8081 | Express + qrcode — Docker | ✅ Build OK (pendiente deploy) |
+| 8 | Text Stats Service | 8082 | Express (zero-deps) — Docker | ✅ Operativo local (smoke test OK) |
+| 9 | AI Summary Service | 8083 | Express + Google Gemini 1.5-flash — Docker | ✅ Build OK (pendiente deploy) |
 
-> **Seguridad**: Los microservicios 5 y 6 requieren el header `x-api-key` en todos los endpoints
-> protegidos. El health check (`GET /health`) es público. La clave se configura via variable de
-> entorno `EXPORT_API_KEY` / `PREVIEW_API_KEY`.
+> **Seguridad**: Todos los endpoints protegidos requieren `x-api-key`. El `GET /health` es siempre público.
+> Variables de entorno requeridas: `API_KEY` (todos), `GEMINI_API_KEY` (servicio 9).
 >
-> **Estructura Link Preview Service**: `apps/link-preview-service/` — `GET /api/v1/preview?url=...`
-> Extrae og:title, og:description, og:image (con fallback a `<title>` y `<meta name="description">`).
-> Puerto 3001. Build TypeScript compila sin errores.
+> **Restricción de memoria EC2 t3.micro**: Los Dockerfiles usan `CMD ["node", "--max-old-space-size=128", "dist/index.js"]`
+> para limitar el heap de Node a 128MB por servicio y evitar OOM en instancias con 1GB de RAM.
+
 
 ---
 

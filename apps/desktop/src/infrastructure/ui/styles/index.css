@@ -2726,3 +2726,12 @@ body.is-resizing-sidebar * {
 .db2-float-btn.secondary:hover {
   background: var(--bg-hover);
 }
+
+/* ============================================================
+   LINK PREVIEW COMPONENT
+   ============================================================ */
+
+@keyframes lp-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
