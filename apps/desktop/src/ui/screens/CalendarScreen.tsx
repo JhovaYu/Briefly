@@ -74,7 +74,7 @@ export function CalendarScreen({ user, onBack, onNavigate }: CalendarScreenProps
 
   const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
   const goToToday = () => setCurrentDate(new Date());
-  
+
   const navigate = (direction: 1 | -1) => {
     const newDate = new Date(currentDate);
     if (view === 'month') {
@@ -102,7 +102,7 @@ export function CalendarScreen({ user, onBack, onNavigate }: CalendarScreenProps
     const month = currentDate.getMonth();
     const daysInMonth = getDaysInMonth(year, month);
     const firstDayIndex = getFirstDayOfMonth(year, month);
-    
+
     const days = [];
     const prevMonthDays = getDaysInMonth(year, month - 1);
     for (let i = firstDayIndex - 1; i >= 0; i--) {
@@ -135,15 +135,15 @@ export function CalendarScreen({ user, onBack, onNavigate }: CalendarScreenProps
             const moreEvents = dayEvents.length - 3;
 
             return (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 onClick={(e) => openPopup(e, d.date)}
                 onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
                 onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--bg-primary)'}
-                style={{ 
-                  minHeight: '100px', 
-                  borderRight: '1px solid var(--border-color)', 
-                  borderBottom: '1px solid var(--border-color)', 
+                style={{
+                  minHeight: '100px',
+                  borderRight: '1px solid var(--border-color)',
+                  borderBottom: '1px solid var(--border-color)',
                   padding: '4px',
                   display: 'flex', flexDirection: 'column', cursor: 'pointer',
                   backgroundColor: 'var(--bg-primary)',
@@ -151,7 +151,7 @@ export function CalendarScreen({ user, onBack, onNavigate }: CalendarScreenProps
                   boxSizing: 'border-box'
                 }}
               >
-                <div style={{ 
+                <div style={{
                   fontSize: '12px', fontWeight: isToday ? 700 : 500, margin: '2px 0 4px 2px',
                   width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   borderRadius: '50%',
@@ -160,13 +160,13 @@ export function CalendarScreen({ user, onBack, onNavigate }: CalendarScreenProps
                 }}>
                   {d.day}
                 </div>
-                
+
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   {displayEvents.map(evt => (
-                    <div 
-                      key={evt.id} 
+                    <div
+                      key={evt.id}
                       onClick={(e) => e.stopPropagation()}
-                      style={{ 
+                      style={{
                         padding: '2px 6px', fontSize: '11px', color: '#fff', borderRadius: '4px',
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         backgroundColor: evt.color,
@@ -190,7 +190,7 @@ export function CalendarScreen({ user, onBack, onNavigate }: CalendarScreenProps
     const HOURS = Array.from({ length: 24 }, (_, i) => i);
     const startOfWeek = new Date(currentDate);
     startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
-    
+
     const weekDays = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(startOfWeek);
       d.setDate(startOfWeek.getDate() + i);
@@ -212,7 +212,7 @@ export function CalendarScreen({ user, onBack, onNavigate }: CalendarScreenProps
             </div>
           ))}
         </div>
-        
+
         <div style={{ flex: 1, overflowY: 'auto', position: 'relative', background: 'var(--bg-primary)' }}>
           {HOURS.map(hour => (
             <div key={`row-${hour}`} style={{ display: 'flex', position: 'absolute', width: '100%', top: hour * 60, height: '60px' }}>
@@ -220,7 +220,7 @@ export function CalendarScreen({ user, onBack, onNavigate }: CalendarScreenProps
                 {hour}:00
               </div>
               {weekDays.map((d, colIndex) => (
-                <div key={`cell-${colIndex}-${hour}`} 
+                <div key={`cell-${colIndex}-${hour}`}
                   onClick={(e) => openPopup(e, d, `${hour.toString().padStart(2, '0')}:00`)}
                   onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
                   onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -229,14 +229,14 @@ export function CalendarScreen({ user, onBack, onNavigate }: CalendarScreenProps
               ))}
             </div>
           ))}
-          
+
           {events.map((evt) => {
             const evtDate = new Date(evt.date);
             const dayIndex = evtDate.getDay();
             const startHourValue = parseInt(evt.startTime.split(':')[0]) + parseInt(evt.startTime.split(':')[1]) / 60;
             const endHourValue = parseInt(evt.endTime.split(':')[0]) + parseInt(evt.endTime.split(':')[1]) / 60;
             const duration = endHourValue - startHourValue;
-            
+
             if (evtDate >= startOfWeek && evtDate < new Date(startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000)) {
               return (
                 <div key={evt.id} style={{
@@ -265,11 +265,11 @@ export function CalendarScreen({ user, onBack, onNavigate }: CalendarScreenProps
 
   return (
     <div className="db2-container">
-      <Sidebar 
+      <Sidebar
         user={user}
         currentScreen="calendar"
         onNavigate={onNavigate}
-        onLogout={() => {}}
+        onLogout={() => { }}
         theme={theme}
         onToggleTheme={toggleTheme}
       />
@@ -303,7 +303,7 @@ export function CalendarScreen({ user, onBack, onNavigate }: CalendarScreenProps
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '4px', gap: '4px' }}>
-              <button 
+              <button
                 onClick={goToToday}
                 style={{ padding: '6px 12px', fontSize: '13px', border: 'none', background: 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 500 }}
               >
@@ -313,7 +313,7 @@ export function CalendarScreen({ user, onBack, onNavigate }: CalendarScreenProps
               <button onClick={() => navigate(-1)} className="db2-user-icon-btn"><ChevronLeft size={18} /></button>
               <button onClick={() => navigate(1)} className="db2-user-icon-btn"><ChevronRight size={18} /></button>
             </div>
-            
+
             <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-secondary)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <button onClick={() => setView('month')} style={{ padding: '6px 16px', borderRadius: '4px', fontSize: '13px', fontWeight: 600, border: 'none', background: view === 'month' ? 'var(--bg-primary)' : 'transparent', color: view === 'month' ? 'var(--text-primary)' : 'var(--text-tertiary)', boxShadow: view === 'month' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none', cursor: 'pointer' }}>Mes</button>
               <button onClick={() => setView('week')} style={{ padding: '6px 16px', borderRadius: '4px', fontSize: '13px', fontWeight: 600, border: 'none', background: view === 'week' ? 'var(--bg-primary)' : 'transparent', color: view === 'week' ? 'var(--text-primary)' : 'var(--text-tertiary)', boxShadow: view === 'week' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none', cursor: 'pointer' }}>Semana</button>

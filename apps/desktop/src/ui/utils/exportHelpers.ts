@@ -71,3 +71,37 @@ export async function exportAllPoolAsZip(doc: any, notes: Note[], notebooks: Not
   a.click();
   URL.revokeObjectURL(url);
 }
+
+export async function exportNoteToService(doc: any, note: Note, serviceUrl: string) {
+  const content = await getNoteContentAsText(doc, note.id);
+  const payload = {
+    title: note.title || 'Sin título',
+    content
+  };
+
+  try {
+    const res = await fetch(serviceUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      throw new Error(`Error en el servicio: ${res.statusText}`);
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${note.title || 'nota'}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Error exportando nota mediante microservicio:', error);
+    throw error;
+  }
+}
+

@@ -18,15 +18,15 @@ import { Sidebar } from '../components/Sidebar';
 // ─────────────────────────────────────────────
 
 const STATUS_META: Record<TaskState, { label: string; color: string; bgVar: string; icon: React.ReactNode }> = {
-  pending:  { label: 'Pendiente',   color: 'var(--text-tertiary)',  bgVar: 'var(--bg-secondary)',       icon: <CheckSquare size={14} /> },
-  working:  { label: 'En progreso', color: 'var(--accent)',         bgVar: 'var(--accent-light)',        icon: <Clock size={14} /> },
-  done:     { label: 'Completada',  color: 'var(--color-success)',  bgVar: 'rgba(16,185,129,0.08)',     icon: <CheckCircle2 size={14} /> },
+  pending: { label: 'Pendiente', color: 'var(--text-tertiary)', bgVar: 'var(--bg-secondary)', icon: <CheckSquare size={14} /> },
+  working: { label: 'En progreso', color: 'var(--accent)', bgVar: 'var(--accent-light)', icon: <Clock size={14} /> },
+  done: { label: 'Completada', color: 'var(--color-success)', bgVar: 'rgba(16,185,129,0.08)', icon: <CheckCircle2 size={14} /> },
 };
 
 const PRIORITY_META: Record<TaskPriority, { label: string; color: string }> = {
-  low:    { label: 'Baja',  color: 'var(--text-secondary)' },
-  medium: { label: 'Media', color: 'var(--color-warning)'  },
-  high:   { label: 'Alta',  color: 'var(--color-error)'    },
+  low: { label: 'Baja', color: 'var(--text-secondary)' },
+  medium: { label: 'Media', color: 'var(--color-warning)' },
+  high: { label: 'Alta', color: 'var(--color-error)' },
 };
 
 // Converts a Unix timestamp to yyyy-mm-dd for <input type="date">
@@ -103,14 +103,14 @@ interface TaskFormProps {
 }
 
 function TaskForm({ initial, onSave, onClose }: TaskFormProps) {
-  const [text, setText]               = useState(initial?.text ?? '');
+  const [text, setText] = useState(initial?.text ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
-  const [state, setState]             = useState<TaskState>(initial?.state ?? 'pending');
-  const [priority, setPriority]       = useState<TaskPriority>(initial?.priority ?? 'medium');
-  const [dueDateStr, setDueDateStr]   = useState(initial?.dueDateStr ?? '');
-  const [tagInput, setTagInput]       = useState('');
-  const [tags, setTags]               = useState<string[]>(initial?.tags ?? []);
-  const textRef                        = useRef<HTMLInputElement>(null);
+  const [state, setState] = useState<TaskState>(initial?.state ?? 'pending');
+  const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? 'medium');
+  const [dueDateStr, setDueDateStr] = useState(initial?.dueDateStr ?? '');
+  const [tagInput, setTagInput] = useState('');
+  const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
+  const textRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { textRef.current?.focus(); }, []);
 
@@ -242,11 +242,11 @@ interface TaskCardProps {
 }
 
 function TaskCard({ task, onStateCycle, onEdit, onDelete, onInlineRename }: TaskCardProps) {
-  const [menuOpen, setMenuOpen]   = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [draftText, setDraftText] = useState(task.text);
-  const inlineInputRef            = useRef<HTMLInputElement>(null);
-  const meta  = STATUS_META[task.state];
+  const inlineInputRef = useRef<HTMLInputElement>(null);
+  const meta = STATUS_META[task.state];
   const pMeta = task.priority ? PRIORITY_META[task.priority] : null;
 
   // dueDate is a timestamp; compare with today for overdue
@@ -304,7 +304,7 @@ function TaskCard({ task, onStateCycle, onEdit, onDelete, onInlineRename }: Task
               onChange={e => setDraftText(e.target.value)}
               onBlur={commitRename}
               onKeyDown={e => {
-                if (e.key === 'Enter')  { e.preventDefault(); commitRename(); }
+                if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
                 if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
               }}
               style={{
@@ -387,8 +387,8 @@ interface ContextMenuProps {
 }
 
 function ContextMenu({ task, menuOpen, setMenuOpen, onEdit, onDelete }: ContextMenuProps) {
-  const menuRef                       = useRef<HTMLDivElement>(null);
-  const [hoverEdit, setHoverEdit]     = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [hoverEdit, setHoverEdit] = useState(false);
   const [hoverDelete, setHoverDelete] = useState(false);
 
   // Close when the user clicks outside the menu container
@@ -505,8 +505,8 @@ interface KanbanColProps {
 
 function KanbanCol({ state, tasks, onStateCycle, onEdit, onDelete, onDrop, onAddQuick, onInlineRename }: KanbanColProps) {
   const meta = STATUS_META[state];
-  const [isDragOver, setIsDragOver]       = useState(false);
-  const [hoverAddBtn, setHoverAddBtn]     = useState(false); // hover state replaces inline DOM mutation
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [hoverAddBtn, setHoverAddBtn] = useState(false); // hover state replaces inline DOM mutation
 
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true); };
   const handleDragLeave = () => setIsDragOver(false);
@@ -580,18 +580,18 @@ function KanbanCol({ state, tasks, onStateCycle, onEdit, onDelete, onDrop, onAdd
 // ─────────────────────────────────────────────
 
 export function TasksScreen({ user, yjsDoc, onBack, onNavigate }: TasksScreenProps) {
-  const serviceRef                          = useRef<TaskService | null>(null);
+  const serviceRef = useRef<TaskService | null>(null);
   const [personalListId, setPersonalListId] = useState<string | null>(null);
-  const [tasks, setTasks]                   = useState<Task[]>([]);
-  const [viewMode, setViewMode]             = useState<'list' | 'kanban'>('list');
-  const [filterState, setFilterState]       = useState<TaskState | 'all'>('all');
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+  const [filterState, setFilterState] = useState<TaskState | 'all'>('all');
   const [filterPriority, setFilterPriority] = useState<TaskPriority | 'all'>('all');
-  const [search, setSearch]                 = useState('');
-  const [sortBy, setSortBy]                 = useState<'createdAt' | 'priority' | 'dueDate'>('createdAt');
-  const [formOpen, setFormOpen]             = useState(false);
-  const [editingTask, setEditingTask]       = useState<Task | undefined>(undefined);
-  const [defaultState, setDefaultState]     = useState<TaskState>('pending');
-  const [pendingDelete, setPendingDelete]   = useState<{
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'createdAt' | 'priority' | 'dueDate'>('createdAt');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | undefined>(undefined);
+  const [defaultState, setDefaultState] = useState<TaskState>('pending');
+  const [pendingDelete, setPendingDelete] = useState<{
     id: string;
     text: string;
     timeoutId: ReturnType<typeof setTimeout>;
@@ -785,10 +785,10 @@ export function TasksScreen({ user, yjsDoc, onBack, onNavigate }: TasksScreenPro
     });
 
   // Stats for header chips
-  const total       = tasks.length;
-  const pending     = tasks.filter(t => t.state === 'pending').length;
-  const working     = tasks.filter(t => t.state === 'working').length;
-  const done        = tasks.filter(t => t.state === 'done').length;
+  const total = tasks.length;
+  const pending = tasks.filter(t => t.state === 'pending').length;
+  const working = tasks.filter(t => t.state === 'working').length;
+  const done = tasks.filter(t => t.state === 'done').length;
   const progressPct = total > 0 ? Math.round((done / total) * 100) : 0;
 
 
@@ -799,11 +799,11 @@ export function TasksScreen({ user, yjsDoc, onBack, onNavigate }: TasksScreenPro
     <>
       <div className="db2-container">
         {/* ─── SIDEBAR ─── */}
-        <Sidebar 
+        <Sidebar
           user={user}
           currentScreen="tasks"
           onNavigate={onNavigate}
-          onLogout={() => {}}
+          onLogout={() => { }}
           theme={theme}
           onToggleTheme={toggleTheme}
           onNewNote={() => { setEditingTask(undefined); setDefaultState('pending'); setFormOpen(true); }}

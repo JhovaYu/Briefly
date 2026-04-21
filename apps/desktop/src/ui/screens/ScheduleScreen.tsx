@@ -96,7 +96,7 @@ export function ScheduleScreen({ user, onBack, onNavigate }: ScheduleScreenProps
   });
 
   const [tempConfig, setTempConfig] = useState<ScheduleConfig>(config);
-  
+
   const [modalData, setModalData] = useState<ScheduleEvent | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
@@ -177,7 +177,7 @@ export function ScheduleScreen({ user, onBack, onNavigate }: ScheduleScreenProps
   const handleSave = () => {
     if (!modalData) return;
     let finalData = { ...modalData };
-    
+
     if (isCreatingCategory && newCategoryName.trim()) {
       const newCat: Category = {
         id: Math.random().toString(36).substr(2, 9),
@@ -203,12 +203,12 @@ export function ScheduleScreen({ user, onBack, onNavigate }: ScheduleScreenProps
     setEvents(events.filter(e => e.id !== modalData.id));
     setModalData(null);
   };
-  
+
   const handleOpenConfig = () => {
     setTempConfig(config);
     setShowScheduleConfig(true);
   };
-  
+
   const handleSaveConfig = () => {
     console.log('[Schedule] Guardando config:', tempConfig);
     setConfig(tempConfig);
@@ -355,11 +355,11 @@ export function ScheduleScreen({ user, onBack, onNavigate }: ScheduleScreenProps
       `}</style>
 
       {/* SIDEBAR COPIADO EXACTAMENTE */}
-      <Sidebar 
+      <Sidebar
         user={user}
         currentScreen="schedule"
         onNavigate={onNavigate}
-        onLogout={() => {}}
+        onLogout={() => { }}
         theme={theme}
         onToggleTheme={toggleTheme}
       />
@@ -452,7 +452,7 @@ export function ScheduleScreen({ user, onBack, onNavigate }: ScheduleScreenProps
                     const dayEvents = events.filter(e => e.day === day);
                     return (
                       <div key={day} style={styles.dayCol}>
-                        
+
                         {/* Empty Hoverable Slots */}
                         {HOURS.map(hour => (
                           <div
@@ -610,11 +610,11 @@ export function ScheduleScreen({ user, onBack, onNavigate }: ScheduleScreenProps
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button style={styles.btnCancel} onClick={() => setShowResetConfirm(false)}>Cancelar</button>
-              <button style={styles.btnDanger} onClick={() => { 
-                setEvents([]); 
+              <button style={styles.btnDanger} onClick={() => {
+                setEvents([]);
                 setScheduleInitialized(false);
                 localStorage.setItem('briefly-schedule-initialized', 'false');
-                setShowResetConfirm(false); 
+                setShowResetConfirm(false);
               }}>Borrar todo</button>
             </div>
           </div>
