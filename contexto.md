@@ -10,12 +10,16 @@
 - **Versión actual**: 1.2.0
 - **Equipo**: MasterCoders AI
 - **Repositorio**: https://github.com/JhovaYu/Briefly
-- **Rama activa de desarrollo**: `feature/tasks-screen` (próxima sesión)
+- **Rama activa de desarrollo**: `feature/tasks-screen`
 - **Ramas existentes**:
   - `main` — producción/estable
-  - `feature/jhovanny-login-redesign` — redesign UI activo (login + dashboard)
+  - `feature/jhovanny-login-redesign` — redesign UI (login + dashboard) — en pausa
   - `feature/jhovanny-desktop-updates` — updates generales desktop
   - `feature/jhovanny-sync-infrastructure` — infraestructura de sincronización
+  - `feature/tasks-screen` — ✅ RAMA ACTIVA — refactor + mejoras UX de TasksScreen
+  - `feature/schedule-event-details` — detalles de eventos en ScheduleScreen (remota)
+  - `feature/jhovanny-mobile-updates` — updates de app mobile (remota)
+  - `claude/determined-elion` — rama auxiliar generada por agente (remota)
 
 ---
 
@@ -37,9 +41,10 @@ Briefly es una **aplicación multiplataforma de notas colaborativas en tiempo re
 
 | Plataforma | Estado | Tech |
 |---|---|---|
-| Desktop | ✅ Operativo, redesign UI activo | Electron 35 + React 19 + TypeScript |
+| Desktop | ✅ Operativo, mejoras activas en TasksScreen | Electron 35 + React 19 + TypeScript |
 | Mobile | 🟡 MVP funcional | React Native + Expo + Expo Router |
 | Web | 🔮 Futuro latente | — |
+
 
 > **Detalle Mobile**: Aunque es de menor prioridad, provee un MVP real funcional. Soporta onboarding, gestión de identidad/espacios (basado en IDs y formato ID@IP), conexión WebRTC e integración plena con las librerías compartidas dentro del monorepo (`@tuxnotas/shared`).
 
@@ -55,15 +60,25 @@ tux_notas/
 │   │   ├── src/
 │   │   │   ├── App.tsx ← Router state-based (sin React Router)
 │   │   │   ├── constants.ts
+│   │   │   ├── electron.d.ts ← Tipos para la API expuesta por Electron
 │   │   │   ├── core/
 │   │   │   │   ├── domain/
-│   │   │   │   │   └── UserProfile.ts ← Entidad UserProfile + CRUD en localStorage
-│   │   │   │   └── ports/ ← Contratos/interfaces (NoteRepository, etc.)
+│   │   │   │   │   └── UserProfile.ts ← Re-exporta UserProfile/PoolInfo de @tuxnotas/shared
+│   │   │   │   │                        + CRUD helpers (getUserProfile, saveUserProfile,
+│   │   │   │   │                          getSavedPools, savePools, addPool, removePool,
+│   │   │   │   │                          updatePoolLastOpened) sobre localStorage
+│   │   │   │   └── ports/
+│   │   │   │       └── Ports.ts ← Contratos/interfaces (NoteRepository, etc.)
 │   │   │   ├── infrastructure/
 │   │   │   │   ├── AppServices.ts ← CollaborationService (orquestador P2P)
-│   │   │   │   ├── network/ ← YjsWebRTCAdapter
-│   │   │   │   ├── persistence/ ← IndexedDBAdapter (y-indexeddb)
+│   │   │   │   ├── network/
+│   │   │   │   │   └── YjsWebRTCAdapter.ts ← WebRTC ↔ Yjs adapter
+│   │   │   │   ├── persistence/
+│   │   │   │   │   └── IndexedDBAdapter.ts ← y-indexeddb wrapper
 │   │   │   │   └── ui/
+│   │   │   │       ├── components/
+│   │   │   │       │   ├── Editor.tsx ← Editor TipTap (componente base)
+│   │   │   │       │   └── TaskBoard.tsx ← Board de tareas Kanban (componente base)
 │   │   │   │       └── styles/
 │   │   │   │           └── index.css ← Design system completo (CSS Variables)
 │   │   │   └── ui/
@@ -75,36 +90,47 @@ tux_notas/
 │   │   │       │   ├── QrModal.tsx ← QR de invitación a Pool
 │   │   │       │   └── SettingsModal.tsx ← Config de accesibilidad (fuente, color)
 │   │   │       ├── screens/
-│   │   │       │   ├── ProfileSetup.tsx (14KB) ← Login + identidad. REDESIGN ACTIVO
-│   │   │       │   ├── HomeDashboard.tsx (13KB) ← Dashboard lista de Pools. REDESIGN ACTIVO
-│   │   │       │   ├── PoolWorkspace.tsx (29KB) ← Editor colaborativo P2P. OPERATIVO
-│   │   │       │   ├── CalendarScreen.tsx (19KB) ← Vista calendario. ✅ ENTREGADO
-│   │   │       │   └── ScheduleScreen.tsx (38KB) ← Tabla horario semanal. OPERATIVO
+│   │   │       │   ├── ProfileSetup.tsx (~14KB) ← Login + identidad dual
+│   │   │       │   ├── HomeDashboard.tsx (~17KB) ← Dashboard lista de Pools
+│   │   │       │   ├── PoolWorkspace.tsx (~29KB) ← Editor colaborativo P2P. OPERATIVO
+│   │   │       │   ├── CalendarScreen.tsx (~17KB) ← Vista calendario. ✅ ENTREGADO
+│   │   │       │   ├── ScheduleScreen.tsx (~37KB) ← Tabla horario semanal. OPERATIVO
+│   │   │       │   └── TasksScreen.tsx (~47KB) ← Lista/Kanban de tareas. ✅ OPERATIVO
 │   │   │       └── utils/
+│   │   │           └── exportHelpers.ts ← jszip: exportNoteAs (txt/md), exportAllPoolAsZip
 │   │   └── package.json ← v1.2.0, nombre: "Briefly"
 │   │
 │   ├── mobile/ ← MVP FUNCIONAL
-│   │   └── app/
-│   │       ├── index.tsx ← Onboarding: crear perfil + gestionar Pools
-│   │       └── [poolId].tsx ← Workspace: WebRTC + notas/tareas del Pool
+│   │   ├── app/ ← Expo Router (file-based routing)
+│   │   ├── src/
+│   │   │   ├── AppContext.tsx
+│   │   │   ├── constants.ts
+│   │   │   ├── polyfills.ts
+│   │   │   └── storage.ts
+│   │   └── shims/
 │   │
 │   └── signaling/ ← WRAPPER (sin código custom)
-│       └── package.json ← script: "node node_modules/y-webrtc/bin/server.js"
+│       └── package.json ← start: "node node_modules/y-webrtc/bin/server.js"
 │
 ├── packages/
 │   └── shared/ ← @tuxnotas/shared (librería interna)
 │       └── src/
 │           ├── index.ts ← Barrel export de todo
 │           ├── domain/
-│           │   ├── Entities.ts ← Tipos: Note, Task (estados: pending/working/done)
-│           │   └── Identity.ts ← Tipos: UserProfile, IdentityType (seed|cloud)
+│           │   ├── Entities.ts ← Tipos: Note, Notebook, Task, TaskState, TaskPriority,
+│           │   │                         TaskList, TaskListPreference, Pool, Peer,
+│           │   │                         UserProfile, PoolInfo
+│           │   └── Identity.ts ← Interface Identity {type, userId, seedPhrase?,
+│           │                      encryptionKey?, syncPoolId?, email?, token?}
 │           ├── crypto/
 │           │   └── SeedPhrase.ts ← Motor BIP39: generate(), isValid(),
 │           │                       deriveCredentials() → {userId, syncPoolId, encryptionKey}
 │           └── logic/
-│               ├── TaskService.ts ← CRUD de tareas sobre Y.Map de Yjs
-│               └── IdentityManager.ts ← Login, guardado de perfil, bridge crypto↔cloud
-│                                      Expone: IdentityManager.cloudClient (Supabase)
+│               ├── TaskService.ts ← CRUD de tareas sobre Y.Map de Yjs:
+│               │                    createTaskList, getTaskLists, addTask, updateTask,
+│               │                    deleteTask, deleteTaskList, getTasks
+│               └── IdentityManager.ts ← Singleton: initializeCloud(url, key),
+│                                        cloudClient (getter → SupabaseClient | null)
 │
 ├── contexto.md ← ESTE ARCHIVO
 └── README.md
@@ -155,11 +181,13 @@ tux_notas/
 
 ### UI Auxiliar
 - **Framer Motion 12** — animaciones y transiciones.
-- **Lucide React 0.563** — íconos SVG (usados en Web/Desktop).
+- **Lucide React 0.563** — íconos SVG (usados en Web/Desktop)
 - **clsx** — manejo de clases condicionales (sin Tailwind, solo CSS custom)
+- **tailwind-merge 3** — utilidad para merge de clases (instalada, uso auxiliar).
 - **qrcode** — generación QR para invitar a Pools.
-- **jszip** — exportación a archivo comprimido (instalado, pendiente de conectar).
+- **jszip** — exportación de notas a ZIP/MD/TXT (✅ conectado en `ui/utils/exportHelpers.ts`).
 - **react-force-graph-2d** — visualización de red/grafo de notas (instalado, pendiente de conectar).
+- **vite-plugin-node-polyfills** — polyfills para APIs Node.js en el contexto del navegador/Vite.
 
 ### Mobile
 - **Expo + Expo Router** — navegación file-based robusta.
@@ -178,18 +206,21 @@ tux_notas/
 
 - **CORE** (reglas de negocio, sin dependencias externas):
   - `domain/Entities.ts` → qué es una Note, una Task, un Pool.
-  - `domain/Identity.ts` → qué es un UserProfile.
+  - `domain/Identity.ts` → qué es una Identity.
+  - `core/domain/UserProfile.ts` → helpers CRUD de `UserProfile` y `PoolInfo` sobre localStorage.
   - `ports/` → contratos para implementación local y remota.
 
 - **INFRASTRUCTURE** (implementaciones concretas):
   - `AppServices.ts` → CollaborationService: orquesta Yjs + WebRTC + IndexedDB.
   - `network/` → YjsWebRTCAdapter: manejo nativo a `y-webrtc`.
   - `persistence/` → IndexedDBAdapter: envoltorio de `y-indexeddb`.
+  - `ui/components/` → Editor.tsx (TipTap base), TaskBoard.tsx (Kanban base).
   - `ui/styles/` → Design system en CSS Vars.
 
 - **UI** (presentación, consume infrastructure):
   - `screens/` → Componentes de página completa.
   - `components/` → Piezas de UI modulares y reutilizables.
+  - `utils/exportHelpers.ts` → Lógica de exportación (jszip).
 
 ---
 
@@ -197,17 +228,26 @@ tux_notas/
 
 ```typescript
 type Screen =
-  | { type: 'profile' }     // ProfileSetup — Login/registro. REDESIGN ACTIVO
-  | { type: 'dashboard' }   // HomeDashboard — lista de Pools. REDESIGN ACTIVO
+  | { type: 'profile' }     // ProfileSetup — Login/registro
+  | { type: 'dashboard' }   // HomeDashboard — lista de Pools
   | { type: 'workspace'; poolId: string; poolName: string; signalingUrl?: string }
   | { type: 'calendar' }    // CalendarScreen ✅
+  | { type: 'notes' }       // ⚠️ PLACEHOLDER — cae al fallback de PoolWorkspace
+  | { type: 'tasks' }       // TasksScreen ✅
   | { type: 'schedule' }    // ScheduleScreen ✅
-  | { type: 'notes' }       // ⚠️ PLACEHOLDER — por implementar
-  | { type: 'tasks' }       // ⚠️ PLACEHOLDER — por implementar
-  | { type: 'boards' }      // ⚠️ PLACEHOLDER — por implementar
-  | { type: 'trash' }       // ⚠️ PLACEHOLDER — por implementar
+  | { type: 'boards' }      // ⚠️ PLACEHOLDER — cae al fallback de PoolWorkspace
+  | { type: 'trash' };      // ⚠️ PLACEHOLDER — cae al fallback de PoolWorkspace
 ```
-*Las pantallas placeholders están planificadas post-rediseño del flujo de login/dashboard.*
+
+> **Nota**: Las pantallas `notes`, `boards` y `trash` aún no tienen screen propia.
+> El fallback en App.tsx las redirige a `PoolWorkspace` con poolId/poolName vacíos.
+
+### Inicialización de App.tsx
+1. `IdentityManager.initializeCloud(url, key)` — si existen las vars de entorno.
+2. `personalDocRef` — `Y.Doc` en memoria para tareas personales.
+3. `YjsIndexedDBAdapter.initialize('briefly-personal-doc')` — persiste el doc personal en IndexedDB.
+4. `sb.auth.getSession()` — detecta sesión Supabase activa → autoLogin.
+5. `sb.auth.onAuthStateChange()` — listener reactivo de cambios de auth.
 
 ---
 
@@ -252,17 +292,33 @@ Conexiones ICE/STUN directas entre pares
 - Vista matricial completa de Horarios / Schedule tracker.
 - Tareas futuras incluyen output PDF / JPG de la tabla via bibliotecas exportables.
 
+### `exportHelpers.ts` (ui/utils/)
+- `getNoteContentAsText(doc, noteId)` — extrae texto plano de un `Y.XmlFragment`.
+- `exportNoteAs(doc, note, 'txt'|'md')` — descarga nota individual en formato TXT o MD.
+- `exportAllPoolAsZip(doc, notes, notebooks, poolName)` — empaqueta todo el Pool en un ZIP,
+  organizando notas por cuadernos dentro de carpetas.
+
 ---
 
 ## Microservicios (Requisito Académico — mínimo 5)
 
-| # | Nombre | Tecnología | Estado |
+El proyecto implementa 5 microservicios. Los primeros 3 operan vía Supabase (BaaS).
+El Signaling Service corre en AWS. El Export Service está pendiente de implementar
+como microservicio HTTP independiente (Node.js/Express) containerizado con Docker.
+
+| # | Servicio | Tecnología | Estado |
 |---|---|---|---|
 | 1 | Auth Service | Supabase Auth (email + Google OAuth) | ✅ Operativo |
 | 2 | Profile Service | Supabase tabla `profiles` | ✅ Operativo |
 | 3 | Pool Registry Service | Supabase tabla `user_pools` | ✅ Operativo |
-| 4 | Signaling Service | y-webrtc server en AWS | 🔧 Pendiente deploy |
-| 5 | Export Service | jszip (endpoint local o AWS) | ⏳ Pendiente |
+| 4 | Signaling Service | y-webrtc server — AWS EC2 | 🔧 Pendiente deploy |
+| 5 | Export Service | Node.js/Express + jszip — Docker | ⏳ Pendiente implementar |
+
+> **Nota**: Los microservicios 1-3 son fachadas BaaS sobre Supabase. El microservicio 5
+> (Export Service) cuando se implemente expondrá endpoints HTTP independientes en su propio
+> contenedor Docker, alineándose con el planteamiento académico original de microservicios
+> con endpoints REST separados. La lógica jszip actual en `exportHelpers.ts` es la base
+> funcional que migrará a ese servicio.
 
 ---
 
@@ -270,11 +326,12 @@ Conexiones ICE/STUN directas entre pares
 
 | Pantalla | Archivo | Tamaño aprox | Estado |
 |---|---|---|---|
-| Login / Perfil | `ProfileSetup.tsx` | ~14KB | 🔧 Redesign activo |
-| Dashboard | `HomeDashboard.tsx` | ~13KB | 🔧 Redesign activo |
+| Login / Perfil | `ProfileSetup.tsx` | ~14KB | ✅ Operativo (redesign pendiente de retomar) |
+| Dashboard | `HomeDashboard.tsx` | ~17KB | ✅ Operativo (redesign pendiente de retomar) |
 | Editor P2P | `PoolWorkspace.tsx` | ~29KB | ✅ Operativo |
-| Calendario | `CalendarScreen.tsx` | ~19KB | ✅ Entregado al profesor |
-| Horario Semanal | `ScheduleScreen.tsx` | ~38KB | ✅ Operativo |
+| Calendario | `CalendarScreen.tsx` | ~17KB | ✅ Entregado al profesor |
+| Horario Semanal | `ScheduleScreen.tsx` | ~37KB | ✅ Operativo |
+| Tareas | `TasksScreen.tsx` | ~47KB | ✅ Operativo (Lista/Kanban, P2P, IndexedDB, UX refinado) |
 
 ---
 
@@ -301,10 +358,10 @@ Conexiones ICE/STUN directas entre pares
 
 ## Pendientes Técnicos
 
-- [ ] Redesign `ProfileSetup` + `HomeDashboard` (TRABAJO ACTIVO)
-- [ ] Implementar screens: `notes`, `tasks`, `boards`, `trash`.
-- [ ] Deploy Signaling Server en AWS (requisito infraestructura para deploy total).
-- [ ] Conectar `jszip` → Export Service (microservicio #5).
+- [ ] [ALTA] Implementar Export Service como microservicio HTTP (Node/Express + jszip) con Docker, exponer endpoints REST para exportar notas a PDF y MD.
+- [ ] [ALTA] Deploy Signaling Service en AWS EC2 con Docker.
+- [ ] Retomar redesign `ProfileSetup` + `HomeDashboard` (rama `feature/jhovanny-login-redesign`).
+- [ ] Implementar screens propias: `notes`, `boards`, `trash` (actualmente caen al fallback de PoolWorkspace).
 - [ ] Conectar `react-force-graph-2d` para una visualización al estilo de Obsidian Graph.
 - [ ] SettingsModal: Extender con selector DarkMode verdadero, custom IP signal e info de perfil.
 - [ ] QrModal: Incluir el ID de texto simple para copiar.
@@ -312,3 +369,36 @@ Conexiones ICE/STUN directas entre pares
 - [ ] Notificaciones nativas Electron/Mobile en Desktop Push.
 - [ ] **Feedback Profesor:** Revisitar el Dashboard final agregando un carácter visual extra (iconografía, gráficos circulares estilo Notion/stats).
 - [ ] App Mobile: Pulir el Workspace (`[poolId].tsx`).
+- [ ] Deuda Técnica: Refactorizar TasksScreen.tsx (monolito de ~47KB) dividiéndolo en componentes más pequeños dentro de ui/components/tasks/.
+
+---
+
+## Contexto Académico — Revisión Alfaro (Taller de Desarrollo)
+
+### Planteamiento original vs. implementación real
+
+El planteamiento formal entregado al profesor propuso:
+- Backend: FastAPI + Python + PostgreSQL + RabbitMQ
+- Frontend: Next.js 14
+- Infraestructura: Docker + Kubernetes + AWS S3
+
+La implementación evolucionó hacia una arquitectura P2P-first:
+- Backend: Supabase (BaaS) + y-webrtc Signaling (AWS)
+- Frontend: Electron 35 + React 19 (Desktop) + React Native (Mobile)
+- Persistencia: IndexedDB (local) + Supabase (cloud sync de metadatos)
+
+Esta divergencia es una decisión arquitectónica documentada, no un desvío.
+La arquitectura hexagonal (Ports & Adapters) se implementó en el cliente
+desktop, no en servicios FastAPI separados. Los 5 microservicios del
+requisito académico se cubren con Supabase (3 servicios) + Signaling AWS
+(1 servicio) + Export Service pendiente (1 servicio).
+
+### Microservicios demostrables para revisión
+
+Para la revisión del profesor, los puntos de demostración son:
+1. **Auth + Google OAuth**: flujo de login en la app (Supabase Auth)
+2. **Profile Service**: tabla `profiles` visible en Supabase dashboard
+3. **Pool Registry**: tabla `user_pools` visible en Supabase dashboard
+4. **Signaling Service**: demostrar conexión P2P entre dos instancias
+   de la app usando el servidor en AWS
+5. **CRDT Sync**: edición colaborativa en tiempo real entre dos peers

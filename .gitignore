@@ -9,4 +9,6 @@ release
 .env.*
 !.env.example
 # Configuración local del agente (Antigravity) — solo en esta PC
-.agents/
+STUDIO_CONTEXT.md
+repomix-output.txt
+.agents

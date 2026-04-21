@@ -19,6 +19,7 @@ export interface Notebook {
 }
 
 export type TaskState = 'pending' | 'working' | 'done';
+export type TaskPriority = 'low' | 'medium' | 'high';
 
 export interface Task {
     id: string;
@@ -30,6 +31,8 @@ export interface Task {
     description?: string;
     createdAt: number;
     completedAt?: number;
+    priority?: TaskPriority;
+    tags?: string[];
 }
 
 export interface TaskList {
